@@ -65,6 +65,7 @@
         btnNextMonth: document.getElementById('btn-next-month'),
         btnCalToday: document.getElementById('btn-cal-today'),
         calendarDaysContainer: document.getElementById('calendar-days-container'),
+        calendarDayDetail: document.getElementById('calendar-day-detail'),
         selectedDateTitle: document.getElementById('selected-date-title'),
         selectedDateBookings: document.getElementById('selected-date-bookings'),
         btnAddOnDate: document.getElementById('btn-add-on-date'),
@@ -463,6 +464,7 @@
         const countHtml = count > 0 ? `<span class="day-booking-count">${count}</span>` : '';
 
         let chipsHtml = '';
+        let dotsHtml = '';
         if (count > 0) {
             chipsHtml = '<div class="day-bookings-list">';
             const displayList = dayBookings.slice(0, 2);
@@ -473,6 +475,13 @@
                 chipsHtml += `<div class="day-more-chip">+${count - 2} lagi</div>`;
             }
             chipsHtml += '</div>';
+
+            dotsHtml = '<div class="day-event-dots">';
+            const dotCount = Math.min(count, 3);
+            for (let i = 0; i < dotCount; i++) {
+                dotsHtml += '<span class="event-dot"></span>';
+            }
+            dotsHtml += '</div>';
         }
 
         cell.innerHTML = `
@@ -481,6 +490,7 @@
                 ${countHtml}
             </div>
             ${chipsHtml}
+            ${dotsHtml}
         `;
 
         cell.addEventListener('click', () => {
@@ -489,6 +499,11 @@
             allCells.forEach(c => c.classList.remove('is-selected'));
             cell.classList.add('is-selected');
             renderSelectedDateDetails();
+
+            // Smooth scroll to selected date schedule on mobile
+            if (window.innerWidth <= 768 && elements.calendarDayDetail) {
+                elements.calendarDayDetail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
         });
 
         elements.calendarDaysContainer.appendChild(cell);
