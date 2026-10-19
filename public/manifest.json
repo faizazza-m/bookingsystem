@@ -1,8 +1,8 @@
 {
   "id": "/?source=pwa",
-  "name": "Sistem Booking - Reservasi & Jadwal",
-  "short_name": "BookEase",
-  "description": "Aplikasi manajemen jadwal dan booking praktis dengan antarmuka Neo-Brutalism responsif.",
+  "name": "Faiz Reminder - Personal Deadline & Task Manager",
+  "short_name": "FaizReminder",
+  "description": "Pengingat deadline, todo list, dan jadwal pribadi dengan email alert.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -32,9 +32,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Tambah Booking",
-      "short_name": "+ Booking",
-      "description": "Buka form tambah reservasi baru",
+      "name": "Tambah Pengingat",
+      "short_name": "+ Tugas",
+      "description": "Buka form tambah pengingat baru",
       "url": "/#tambah",
       "icons": [
         {
@@ -44,5 +44,5 @@
       ]
     }
   ],
-  "categories": ["productivity", "business", "utilities"]
+  "categories": ["productivity", "utilities"]
 }

@@ -17,18 +17,55 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
+    
+    # Tabel reminders
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS bookings (
+        CREATE TABLE IF NOT EXISTS reminders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_name TEXT NOT NULL,
-            service TEXT NOT NULL,
-            booking_date TEXT NOT NULL
+            title TEXT NOT NULL,
+            priority TEXT NOT NULL DEFAULT 'Sedang',
+            deadline_date TEXT NOT NULL,
+            deadline_time TEXT DEFAULT '09:00',
+            notes TEXT DEFAULT '',
+            is_completed INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+
+    # Tabel log email (simulasi atau riil)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS email_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reminder_id INTEGER,
+            recipient TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT NOT NULL,
+            status TEXT NOT NULL,
+            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (reminder_id) REFERENCES reminders(id) ON DELETE SET NULL
+        )
+    ''')
+
+    # Migrasi data lama dari tabel bookings (jika ada dan reminders kosong)
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='bookings'")
+    has_old_bookings = cursor.fetchone() is not None
+    if has_old_bookings:
+        cursor.execute("SELECT COUNT(*) as count FROM reminders")
+        reminders_count = cursor.fetchone()['count']
+        if reminders_count == 0:
+            cursor.execute("SELECT customer_name, service, booking_date FROM bookings")
+            old_rows = cursor.fetchall()
+            for r in old_rows:
+                cursor.execute(
+                    '''INSERT INTO reminders (title, priority, deadline_date, notes) 
+                       VALUES (?, ?, ?, ?)''',
+                    (f"{r['customer_name']} - {r['service']}", 'Sedang', r['booking_date'], 'Data migrasi dari booking')
+                )
+
     conn.commit()
     conn.close()
 
-class BookingRequestHandler(http.server.SimpleHTTPRequestHandler):
+class ReminderRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
 
@@ -38,7 +75,7 @@ class BookingRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(response_body)))
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
         self.wfile.write(response_body)
@@ -46,7 +83,7 @@ class BookingRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
@@ -55,11 +92,15 @@ class BookingRequestHandler(http.server.SimpleHTTPRequestHandler):
         path = parsed_url.path
         query_params = urllib.parse.parse_qs(parsed_url.query)
 
-        if path == '/api/bookings':
-            self.handle_get_bookings(query_params)
+        # Support both /api/reminders and /api/bookings for backward compatibility
+        if path in ('/api/reminders', '/api/bookings'):
+            self.handle_get_reminders(query_params)
             return
         elif path == '/api/stats':
             self.handle_get_stats()
+            return
+        elif path == '/api/email-logs':
+            self.handle_get_email_logs()
             return
         
         # Serve static files from PUBLIC_DIR
@@ -67,87 +108,128 @@ class BookingRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed_url = urllib.parse.urlparse(self.path)
-        if parsed_url.path == '/api/bookings':
-            self.handle_create_booking()
+        path = parsed_url.path
+
+        if path in ('/api/reminders', '/api/bookings'):
+            self.handle_create_reminder()
             return
+        elif path.startswith('/api/reminders/') and path.endswith('/send-email'):
+            parts = path.strip('/').split('/')
+            try:
+                reminder_id = int(parts[2])
+                self.handle_send_email(reminder_id)
+                return
+            except ValueError:
+                self._send_json({'error': 'ID reminder tidak valid'}, 400)
+                return
+
+        self._send_json({'error': 'Not found'}, 404)
+
+    def do_PUT(self):
+        parsed_url = urllib.parse.urlparse(self.path)
+        path = parsed_url.path
+        parts = path.strip('/').split('/')
+        # e.g. /api/reminders/<id>/toggle
+        if len(parts) == 4 and parts[0] == 'api' and parts[1] == 'reminders' and parts[3] == 'toggle':
+            try:
+                reminder_id = int(parts[2])
+                self.handle_toggle_completed(reminder_id)
+                return
+            except ValueError:
+                self._send_json({'error': 'ID reminder harus berupa angka'}, 400)
+                return
         self._send_json({'error': 'Not found'}, 404)
 
     def do_DELETE(self):
         parsed_url = urllib.parse.urlparse(self.path)
         parts = parsed_url.path.strip('/').split('/')
-        # e.g. /api/bookings/<id>
-        if len(parts) == 3 and parts[0] == 'api' and parts[1] == 'bookings':
+        # e.g. /api/reminders/<id> or /api/bookings/<id>
+        if len(parts) == 3 and parts[0] == 'api' and parts[1] in ('reminders', 'bookings'):
             try:
-                booking_id = int(parts[2])
-                self.handle_delete_booking(booking_id)
+                reminder_id = int(parts[2])
+                self.handle_delete_reminder(reminder_id)
                 return
             except ValueError:
-                self._send_json({'error': 'ID booking harus berupa angka'}, 400)
+                self._send_json({'error': 'ID harus berupa angka'}, 400)
                 return
         self._send_json({'error': 'Not found'}, 404)
 
-    def handle_get_bookings(self, query_params):
+    def handle_get_reminders(self, query_params):
         search = query_params.get('search', [''])[0].strip()
         sort_by = query_params.get('sort', ['id_desc'])[0]
+        filter_status = query_params.get('status', ['all'])[0]
+        filter_priority = query_params.get('priority', ['all'])[0]
 
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        sql = 'SELECT id, customer_name, service, booking_date FROM bookings'
+        sql = 'SELECT id, title, priority, deadline_date, deadline_time, notes, is_completed, created_at FROM reminders WHERE 1=1'
         params = []
 
         if search:
-            sql += ' WHERE customer_name LIKE ? OR service LIKE ? OR booking_date LIKE ?'
+            sql += ' AND (title LIKE ? OR notes LIKE ? OR deadline_date LIKE ?)'
             search_param = f'%{search}%'
             params.extend([search_param, search_param, search_param])
 
+        if filter_status == 'pending':
+            sql += ' AND is_completed = 0'
+        elif filter_status == 'completed':
+            sql += ' AND is_completed = 1'
+
+        if filter_priority in ('Tinggi', 'Sedang', 'Rendah'):
+            sql += ' AND priority = ?'
+            params.append(filter_priority)
+
         if sort_by == 'date_asc':
-            sql += ' ORDER BY booking_date ASC, id ASC'
+            sql += ' ORDER BY deadline_date ASC, deadline_time ASC, id ASC'
         elif sort_by == 'date_desc':
-            sql += ' ORDER BY booking_date DESC, id DESC'
-        elif sort_by == 'name_asc':
-            sql += ' ORDER BY customer_name COLLATE NOCASE ASC'
+            sql += ' ORDER BY deadline_date DESC, deadline_time DESC, id DESC'
+        elif sort_by == 'priority':
+            sql += " ORDER BY CASE priority WHEN 'Tinggi' THEN 1 WHEN 'Sedang' THEN 2 WHEN 'Rendah' THEN 3 ELSE 4 END, deadline_date ASC"
+        elif sort_by == 'title_asc':
+            sql += ' ORDER BY title COLLATE NOCASE ASC'
         else:
-            sql += ' ORDER BY id DESC'
+            sql += ' ORDER BY is_completed ASC, deadline_date ASC, id DESC'
 
         cursor.execute(sql, params)
         rows = cursor.fetchall()
         conn.close()
 
-        bookings = [
+        reminders = [
             {
                 'id': row['id'],
-                'customer_name': row['customer_name'],
-                'service': row['service'],
-                'booking_date': row['booking_date']
+                'title': row['title'],
+                'priority': row['priority'],
+                'deadline_date': row['deadline_date'],
+                'deadline_time': row['deadline_time'] or '09:00',
+                'notes': row['notes'] or '',
+                'is_completed': bool(row['is_completed']),
+                'created_at': row['created_at'],
+                # Backward compatibility keys for frontend
+                'customer_name': row['title'],
+                'service': row['priority'],
+                'booking_date': row['deadline_date']
             }
             for row in rows
         ]
-        self._send_json({'success': True, 'data': bookings, 'total': len(bookings)})
+        self._send_json({'success': True, 'data': reminders, 'total': len(reminders)})
 
     def handle_get_stats(self):
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        cursor.execute('SELECT COUNT(*) as total FROM bookings')
+        cursor.execute('SELECT COUNT(*) as total FROM reminders')
         total = cursor.fetchone()['total']
 
         today_str = date.today().isoformat()
-        cursor.execute('SELECT COUNT(*) as today_count FROM bookings WHERE booking_date = ?', (today_str,))
+        cursor.execute('SELECT COUNT(*) as today_count FROM reminders WHERE deadline_date = ? AND is_completed = 0', (today_str,))
         today_count = cursor.fetchone()['today_count']
 
-        cursor.execute('SELECT COUNT(*) as upcoming_count FROM bookings WHERE booking_date >= ?', (today_str,))
-        upcoming_count = cursor.fetchone()['upcoming_count']
+        cursor.execute("SELECT COUNT(*) as high_priority FROM reminders WHERE priority = 'Tinggi' AND is_completed = 0")
+        high_priority = cursor.fetchone()['high_priority']
 
-        cursor.execute('''
-            SELECT service, COUNT(*) as count 
-            FROM bookings 
-            GROUP BY service 
-            ORDER BY count DESC 
-            LIMIT 1
-        ''')
-        top_service_row = cursor.fetchone()
-        top_service = top_service_row['service'] if top_service_row else '-'
+        cursor.execute('SELECT COUNT(*) as completed_count FROM reminders WHERE is_completed = 1')
+        completed_count = cursor.fetchone()['completed_count']
 
         conn.close()
 
@@ -156,13 +238,16 @@ class BookingRequestHandler(http.server.SimpleHTTPRequestHandler):
             'stats': {
                 'total': total,
                 'today': today_count,
-                'upcoming': upcoming_count,
-                'top_service': top_service,
+                'high_priority': high_priority,
+                'completed': completed_count,
+                # compatibility
+                'upcoming': high_priority,
+                'top_service': f"{completed_count} Selesai",
                 'today_date': today_str
             }
         })
 
-    def handle_create_booking(self):
+    def handle_create_reminder(self):
         content_length = int(self.headers.get('Content-Length', 0))
         if content_length == 0:
             self._send_json({'error': 'Data permintaan tidak boleh kosong'}, 400)
@@ -175,23 +260,26 @@ class BookingRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._send_json({'error': 'Format JSON tidak valid'}, 400)
             return
 
-        customer_name = str(data.get('customer_name', '')).strip()
-        service = str(data.get('service', '')).strip()
-        booking_date = str(data.get('booking_date', '')).strip()
+        title = str(data.get('title') or data.get('customer_name') or '').strip()
+        priority = str(data.get('priority') or data.get('service') or 'Sedang').strip()
+        deadline_date = str(data.get('deadline_date') or data.get('booking_date') or '').strip()
+        deadline_time = str(data.get('deadline_time') or '09:00').strip()
+        notes = str(data.get('notes') or '').strip()
 
-        if not customer_name:
-            self._send_json({'error': 'Nama pelanggan wajib diisi'}, 400)
+        if not title:
+            self._send_json({'error': 'Judul tugas / pengingat wajib diisi'}, 400)
             return
-        if not service:
-            self._send_json({'error': 'Layanan wajib dipilih atau diisi'}, 400)
+        if not deadline_date:
+            self._send_json({'error': 'Tanggal deadline wajib diisi'}, 400)
             return
-        if not booking_date:
-            self._send_json({'error': 'Tanggal booking wajib diisi'}, 400)
-            return
+
+        # Normalisasi priority jika input dari sistem lama
+        if priority not in ('Tinggi', 'Sedang', 'Rendah'):
+            priority = 'Sedang'
 
         # Validasi format tanggal YYYY-MM-DD
         try:
-            datetime.strptime(booking_date, '%Y-%m-%d')
+            datetime.strptime(deadline_date, '%Y-%m-%d')
         except ValueError:
             self._send_json({'error': 'Format tanggal harus YYYY-MM-DD'}, 400)
             return
@@ -199,8 +287,9 @@ class BookingRequestHandler(http.server.SimpleHTTPRequestHandler):
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'INSERT INTO bookings (customer_name, service, booking_date) VALUES (?, ?, ?)',
-            (customer_name, service, booking_date)
+            '''INSERT INTO reminders (title, priority, deadline_date, deadline_time, notes, is_completed) 
+               VALUES (?, ?, ?, ?, ?, 0)''',
+            (title, priority, deadline_date, deadline_time, notes)
         )
         new_id = cursor.lastrowid
         conn.commit()
@@ -208,39 +297,143 @@ class BookingRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         self._send_json({
             'success': True,
-            'message': 'Booking berhasil ditambahkan',
+            'message': f'Pengingat "{title}" berhasil ditambahkan!',
             'data': {
                 'id': new_id,
-                'customer_name': customer_name,
-                'service': service,
-                'booking_date': booking_date
+                'title': title,
+                'priority': priority,
+                'deadline_date': deadline_date,
+                'deadline_time': deadline_time,
+                'notes': notes,
+                'is_completed': False
             }
         }, 201)
 
-    def handle_delete_booking(self, booking_id):
+    def handle_toggle_completed(self, reminder_id):
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM bookings WHERE id = ?', (booking_id,))
+        cursor.execute('SELECT is_completed, title FROM reminders WHERE id = ?', (reminder_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            self._send_json({'error': 'Pengingat tidak ditemukan'}, 404)
+            return
+
+        new_status = 0 if row['is_completed'] == 1 else 1
+        cursor.execute('UPDATE reminders SET is_completed = ? WHERE id = ?', (new_status, reminder_id))
+        conn.commit()
+        conn.close()
+
+        status_text = 'selesai' if new_status == 1 else 'aktif kembali'
+        self._send_json({
+            'success': True,
+            'is_completed': bool(new_status),
+            'message': f'Tugas "{row["title"]}" ditandai {status_text}'
+        })
+
+    def handle_delete_reminder(self, reminder_id):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM reminders WHERE id = ?', (reminder_id,))
         affected = cursor.rowcount
         conn.commit()
         conn.close()
 
         if affected > 0:
-            self._send_json({'success': True, 'message': f'Booking #{booking_id} berhasil dibatalkan'})
+            self._send_json({'success': True, 'message': f'Pengingat #{reminder_id} berhasil dihapus'})
         else:
-            self._send_json({'error': f'Booking dengan ID {booking_id} tidak ditemukan'}, 404)
+            self._send_json({'error': f'Pengingat #{reminder_id} tidak ditemukan'}, 404)
+
+    def handle_send_email(self, reminder_id):
+        content_length = int(self.headers.get('Content-Length', 0))
+        recipient = 'faizfaqot23@gmail.com'
+        if content_length > 0:
+            try:
+                body = self.rfile.read(content_length).decode('utf-8')
+                data = json.loads(body)
+                if data.get('recipient'):
+                    recipient = str(data['recipient']).strip()
+            except Exception:
+                pass
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM reminders WHERE id = ?', (reminder_id,))
+        reminder = cursor.fetchone()
+
+        if not reminder:
+            conn.close()
+            self._send_json({'error': 'Pengingat tidak ditemukan'}, 404)
+            return
+
+        subject = f"🔔 [Pengingat Deadline: {reminder['priority']}] {reminder['title']}"
+        body_content = (
+            f"Halo Faiz!\n\n"
+            f"Ini adalah pengingat untuk tugas/agenda pribadi Anda:\n"
+            f"-----------------------------------------\n"
+            f"📌 Judul Tugas  : {reminder['title']}\n"
+            f"⚡ Prioritas    : {reminder['priority']}\n"
+            f"📅 Tanggal      : {reminder['deadline_date']}\n"
+            f"⏰ Waktu/Jam    : {reminder['deadline_time'] or '-'}\n"
+            f"📝 Catatan      : {reminder['notes'] or '-'}\n"
+            f"-----------------------------------------\n"
+            f"Semangat menyelesaikan tugasnya!\n\n"
+            f"-- Dikirim otomatis oleh Faiz Personal Reminder (Simulasi Notifikasi)"
+        )
+
+        # Simpan ke tabel email_logs sebagai simulasi terkirim
+        cursor.execute(
+            '''INSERT INTO email_logs (reminder_id, recipient, subject, body, status) 
+               VALUES (?, ?, ?, ?, ?)''',
+            (reminder_id, recipient, subject, body_content, 'TERKIRIM (SIMULASI)')
+        )
+        log_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        self._send_json({
+            'success': True,
+            'message': f'Email pengingat berhasil dikirim (simulasi) ke {recipient}!',
+            'email_details': {
+                'log_id': log_id,
+                'recipient': recipient,
+                'subject': subject,
+                'body': body_content,
+                'sent_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+        })
+
+    def handle_get_email_logs(self):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM email_logs ORDER BY id DESC LIMIT 20')
+        rows = cursor.fetchall()
+        conn.close()
+
+        logs = [
+            {
+                'id': r['id'],
+                'reminder_id': r['reminder_id'],
+                'recipient': r['recipient'],
+                'subject': r['subject'],
+                'body': r['body'],
+                'status': r['status'],
+                'sent_at': r['sent_at']
+            }
+            for r in rows
+        ]
+        self._send_json({'success': True, 'logs': logs})
 
 def run(port=8000):
     init_db()
     os.makedirs(PUBLIC_DIR, exist_ok=True)
     server_address = ('', port)
     
-    # Enable socket reuse to prevent Address already in use errors on restart
     class ReusableThreadingServer(http.server.ThreadingHTTPServer):
         allow_reuse_address = True
 
-    httpd = ReusableThreadingServer(server_address, BookingRequestHandler)
-    print(f"✨ Server Sistem Booking aktif di http://localhost:{port}")
+    httpd = ReusableThreadingServer(server_address, ReminderRequestHandler)
+    print(f"✨ Server Faiz Personal Reminder aktif di http://localhost:{port}")
     print(f"Tekan Ctrl+C untuk menghentikan server.")
     try:
         httpd.serve_forever()

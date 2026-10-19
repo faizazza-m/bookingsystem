@@ -1818,3 +1818,326 @@ body {
     }
 }
 
+/* ==========================================================================
+   Faiz Reminder & Todo Deadline Specific Styles
+   ========================================================================== */
+
+.btn-email-outbox {
+    background: var(--neo-yellow);
+    color: #000000;
+    border: var(--border);
+    padding: 0.55rem 1.1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    font-weight: 900;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+}
+
+.btn-email-outbox:hover {
+    background: var(--neo-yellow-hover);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-email-outbox:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+}
+
+.btn-email-outbox svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.5;
+}
+
+/* Todo Checkbox */
+.todo-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.todo-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border: var(--border);
+    border-radius: 4px;
+    background: #ffffff;
+    box-shadow: 2px 2px 0px #000000;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.todo-checkbox:hover {
+    background: var(--neo-green);
+    transform: translate(-1px, -1px);
+}
+
+.todo-checkbox:checked {
+    background: var(--neo-green);
+    box-shadow: 1px 1px 0px #000000;
+}
+
+.todo-checkbox:checked::after {
+    content: '✓';
+    font-size: 16px;
+    font-weight: 900;
+    color: #000000;
+}
+
+/* Completed Row Styling */
+tr.is-completed td {
+    opacity: 0.65;
+    background: rgba(0, 0, 0, 0.03);
+}
+
+tr.is-completed .reminder-title {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+.reminder-title-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.reminder-title {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.reminder-notes {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Priority Pills */
+.pill-priority-high {
+    background: var(--neo-red) !important;
+    color: #000000 !important;
+}
+
+.pill-priority-medium {
+    background: var(--neo-yellow) !important;
+    color: #000000 !important;
+}
+
+.pill-priority-low {
+    background: var(--neo-green) !important;
+    color: #000000 !important;
+}
+
+.badge-priority-high {
+    background: var(--neo-red);
+    color: #000000;
+    border: var(--border);
+    box-shadow: 2px 2px 0px #000000;
+    font-weight: 800;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+.badge-priority-medium {
+    background: var(--neo-yellow);
+    color: #000000;
+    border: var(--border);
+    box-shadow: 2px 2px 0px #000000;
+    font-weight: 800;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+.badge-priority-low {
+    background: var(--neo-green);
+    color: #000000;
+    border: var(--border);
+    box-shadow: 2px 2px 0px #000000;
+    font-weight: 800;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--radius-sm);
+    display: inline-block;
+}
+
+/* Button Icon Email */
+.btn-icon-email {
+    background: var(--neo-blue);
+    color: #000000;
+    border: var(--border);
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+}
+
+.btn-icon-email:hover {
+    background: var(--neo-blue-hover);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-icon-email:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+}
+
+.btn-icon-email svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.4;
+}
+
+.table-actions-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Form Row 2 */
+.form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 576px) {
+    .form-row-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.neo-textarea {
+    width: 100%;
+    background: var(--bg-surface-elevated);
+    border: var(--border);
+    color: var(--text-primary);
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.92rem;
+    font-weight: 600;
+    font-family: inherit;
+    box-shadow: var(--shadow-sm);
+    resize: vertical;
+}
+
+.neo-textarea:focus {
+    outline: none;
+    box-shadow: var(--shadow-md);
+}
+
+/* Email Preview Box */
+.email-preview-box {
+    background: #ffffff;
+    border: var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    padding: 1rem;
+    margin-top: 0.5rem;
+}
+
+.preview-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1.5px solid #e2e8f0;
+}
+
+.preview-badge {
+    background: var(--neo-pink);
+    color: #000000;
+    border: 1.5px solid #000000;
+    font-size: 0.72rem;
+    font-weight: 900;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.preview-body {
+    font-family: monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    padding: 0.85rem;
+    border-radius: 4px;
+    color: #1e293b;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+/* Email Logs Container */
+.email-logs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.email-log-card {
+    background: var(--bg-surface-elevated);
+    border: var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.log-status-badge {
+    background: var(--neo-green);
+    color: #000000;
+    border: 1.5px solid #000000;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.log-subject {
+    font-weight: 800;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+}
+
+.log-recipient {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+

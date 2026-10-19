@@ -1,6 +1,6 @@
 /**
- * Sistem Booking Modern - Client-side Logic with Interactive Calendar
- * Vanilla JavaScript ES6+
+ * Faiz Reminder - Personal Deadline & Task Manager
+ * Client-side Logic (ES6+)
  */
 
 (function () {
@@ -14,12 +14,14 @@
     // State
     const now = new Date();
     const state = {
-        bookings: [],
+        reminders: [],
         currentView: 'table', // 'table' | 'grid' | 'calendar'
         searchQuery: '',
-        sortBy: 'id_desc',
+        statusFilter: 'all',  // 'all' | 'pending' | 'completed'
+        sortBy: 'date_asc',
         deletingId: null,
-        theme: localStorage.getItem('booking_app_theme') || 'light',
+        targetEmailReminder: null,
+        theme: localStorage.getItem('reminder_theme') || 'light',
         todayDateStr: now.toISOString().split('T')[0],
         calendarYear: now.getFullYear(),
         calendarMonth: now.getMonth(),
@@ -42,11 +44,13 @@
         // Toolbar
         searchInput: document.getElementById('search-input'),
         clearSearchBtn: document.getElementById('clear-search-btn'),
+        statusFilterSelect: document.getElementById('status-filter-select'),
         sortSelect: document.getElementById('sort-select'),
         viewTableBtn: document.getElementById('view-table-btn'),
         viewGridBtn: document.getElementById('view-grid-btn'),
         viewCalendarBtn: document.getElementById('view-calendar-btn'),
         openAddModalBtn: document.getElementById('open-add-modal-btn'),
+        openOutboxBtn: document.getElementById('open-outbox-btn'),
 
         // Containers
         loadingSpinner: document.getElementById('loading-spinner'),
@@ -58,7 +62,7 @@
         calendarView: document.getElementById('calendar-view'),
         bookingsTbody: document.getElementById('bookings-tbody'),
 
-        // Calendar Controls & Elements
+        // Calendar
         calendarMonthYear: document.getElementById('calendar-month-year'),
         calendarMonthTotal: document.getElementById('calendar-month-total'),
         btnPrevMonth: document.getElementById('btn-prev-month'),
@@ -75,16 +79,33 @@
         closeModalBtn: document.getElementById('close-modal-btn'),
         cancelModalBtn: document.getElementById('cancel-modal-btn'),
         bookingForm: document.getElementById('booking-form'),
-        inputCustomerName: document.getElementById('input-customer-name'),
-        inputService: document.getElementById('input-service'),
-        inputBookingDate: document.getElementById('input-booking-date'),
+        inputCustomerName: document.getElementById('input-customer-name'), // used for Title
+        inputService: document.getElementById('input-service'),             // used for Priority
+        inputBookingDate: document.getElementById('input-booking-date'),   // used for Deadline Date
+        inputDeadlineTime: document.getElementById('input-deadline-time'),
+        inputNotes: document.getElementById('input-notes'),
         formError: document.getElementById('form-error'),
         formErrorMsg: document.getElementById('form-error-msg'),
         submitBookingBtn: document.getElementById('submit-booking-btn'),
-        servicePills: document.getElementById('service-pills'),
+        priorityPills: document.getElementById('priority-pills'),
         btnDateToday: document.getElementById('btn-date-today'),
         btnDateTomorrow: document.getElementById('btn-date-tomorrow'),
         btnDateNextWeek: document.getElementById('btn-date-nextweek'),
+
+        // Email Modal
+        emailModal: document.getElementById('email-modal'),
+        closeEmailModalBtn: document.getElementById('close-email-modal-btn'),
+        cancelEmailBtn: document.getElementById('cancel-email-btn'),
+        confirmSendEmailBtn: document.getElementById('confirm-send-email-btn'),
+        emailRecipientInput: document.getElementById('email-recipient-input'),
+        emailPreviewSubject: document.getElementById('email-preview-subject'),
+        emailPreviewBody: document.getElementById('email-preview-body'),
+
+        // Outbox Modal
+        outboxModal: document.getElementById('outbox-modal'),
+        closeOutboxModalBtn: document.getElementById('close-outbox-modal-btn'),
+        closeOutboxBtn: document.getElementById('close-outbox-btn'),
+        emailLogsList: document.getElementById('email-logs-list'),
 
         // Delete Modal
         deleteModal: document.getElementById('delete-modal'),
@@ -113,7 +134,7 @@
     function applyTheme(theme) {
         state.theme = theme;
         elements.html.setAttribute('data-theme', theme);
-        localStorage.setItem('booking_app_theme', theme);
+        localStorage.setItem('reminder_theme', theme);
     }
 
     function toggleTheme() {
@@ -155,25 +176,26 @@
         elements.calendarView.style.display = 'none';
 
         try {
-            await Promise.all([fetchBookings(), fetchStats()]);
+            await Promise.all([fetchReminders(), fetchStats()]);
         } catch (error) {
             console.error('Fetch error:', error);
             showToast('Gagal memuat data dari server', 'error');
         } finally {
             elements.loadingSpinner.style.display = 'none';
-            renderBookings();
+            renderReminders();
         }
     }
 
-    async function fetchBookings() {
+    async function fetchReminders() {
         const params = new URLSearchParams({
             search: state.searchQuery,
+            status: state.statusFilter,
             sort: state.sortBy
         });
-        const response = await fetch(`/api/bookings?${params.toString()}`);
-        if (!response.ok) throw new Error('Gagal mengambil daftar booking');
+        const response = await fetch(`/api/reminders?${params.toString()}`);
+        if (!response.ok) throw new Error('Gagal mengambil daftar pengingat');
         const result = await response.json();
-        state.bookings = result.data || [];
+        state.reminders = result.data || [];
     }
 
     async function fetchStats() {
@@ -183,31 +205,42 @@
         if (result.success && result.stats) {
             elements.statTotal.textContent = result.stats.total;
             elements.statToday.textContent = result.stats.today;
-            elements.statUpcoming.textContent = result.stats.upcoming;
-            elements.statTopService.textContent = result.stats.top_service || '-';
+            elements.statUpcoming.textContent = result.stats.high_priority;
+            elements.statTopService.textContent = result.stats.completed;
             state.todayDateStr = result.stats.today_date;
         }
     }
 
-    async function submitBooking(formData) {
+    async function toggleCompleted(id) {
+        try {
+            const response = await fetch(`/api/reminders/${id}/toggle`, { method: 'PUT' });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Gagal mengubah status tugas');
+            showToast(data.message, 'success');
+            await fetchData();
+        } catch (err) {
+            showToast(err.message, 'error');
+        }
+    }
+
+    async function submitReminder(formData) {
         setSubmitLoading(true);
         hideFormError();
 
         try {
-            const response = await fetch('/api/bookings', {
+            const response = await fetch('/api/reminders', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData)
             });
 
             const data = await response.json();
-
             if (!response.ok) {
-                throw new Error(data.error || 'Gagal menambahkan booking');
+                throw new Error(data.error || 'Gagal menambahkan pengingat');
             }
 
             closeAddModal();
-            showToast(`Booking untuk "${formData.customer_name}" berhasil dibuat!`, 'success');
+            showToast(`Pengingat "${formData.title}" berhasil disimpan!`, 'success');
             await fetchData();
         } catch (err) {
             showFormError(err.message);
@@ -216,38 +249,99 @@
         }
     }
 
-    async function deleteBooking(id) {
+    async function deleteReminder(id) {
         try {
             elements.confirmDeleteBtn.disabled = true;
             elements.confirmDeleteBtn.textContent = 'Menghapus...';
 
-            const response = await fetch(`/api/bookings/${id}`, {
+            const response = await fetch(`/api/reminders/${id}`, {
                 method: 'DELETE'
             });
 
             const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.error || 'Gagal membatalkan booking');
+                throw new Error(data.error || 'Gagal menghapus pengingat');
             }
 
             closeDeleteModal();
-            showToast(`Booking #${id} berhasil dibatalkan`, 'success');
+            showToast(`Pengingat #${id} berhasil dihapus`, 'success');
             await fetchData();
         } catch (err) {
             showToast(err.message, 'error');
         } finally {
             elements.confirmDeleteBtn.disabled = false;
-            elements.confirmDeleteBtn.textContent = 'Ya, Batalkan';
+            elements.confirmDeleteBtn.textContent = 'Ya, Hapus';
+        }
+    }
+
+    async function sendEmailNotification(id, recipient) {
+        try {
+            elements.confirmSendEmailBtn.disabled = true;
+            elements.confirmSendEmailBtn.textContent = 'Mengirim...';
+
+            const response = await fetch(`/api/reminders/${id}/send-email`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipient: recipient })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || 'Gagal mengirim email');
+
+            closeEmailModal();
+            showToast(data.message, 'success');
+        } catch (err) {
+            showToast(err.message, 'error');
+        } finally {
+            elements.confirmSendEmailBtn.disabled = false;
+            elements.confirmSendEmailBtn.textContent = 'Kirim Email Sekarang 🚀';
+        }
+    }
+
+    async function loadEmailLogs() {
+        elements.emailLogsList.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Memuat riwayat...</p>';
+        try {
+            const res = await fetch('/api/email-logs');
+            const data = await res.json();
+            if (!res.ok) throw new Error('Gagal memuat log email');
+
+            if (!data.logs || data.logs.length === 0) {
+                elements.emailLogsList.innerHTML = `
+                    <div class="empty-day-message">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        </svg>
+                        <p>Belum ada email yang dikirimkan. Coba klik tombol email 📧 pada salah satu tugas!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            elements.emailLogsList.innerHTML = '';
+            data.logs.forEach(log => {
+                const card = document.createElement('div');
+                card.className = 'email-log-card';
+                card.innerHTML = `
+                    <div class="log-header">
+                        <span class="log-status-badge">✓ ${escapeHtml(log.status)}</span>
+                        <span style="color: var(--text-muted); font-size: 0.75rem;">${escapeHtml(log.sent_at)}</span>
+                    </div>
+                    <div class="log-subject">${escapeHtml(log.subject)}</div>
+                    <div class="log-recipient">Tujuan: <strong>${escapeHtml(log.recipient)}</strong></div>
+                `;
+                elements.emailLogsList.appendChild(card);
+            });
+        } catch (err) {
+            elements.emailLogsList.innerHTML = `<p style="color: var(--neo-red); text-align: center;">${err.message}</p>`;
         }
     }
 
     /* ==========================================================================
        Rendering & Views
        ========================================================================== */
-    function renderBookings() {
-        const count = state.bookings.length;
+    function renderReminders() {
+        const count = state.reminders.length;
 
-        // If in calendar view, always show calendar even when bookings = 0
         if (state.currentView === 'calendar') {
             elements.emptyState.style.display = 'none';
             elements.tableView.style.display = 'none';
@@ -264,10 +358,10 @@
             elements.gridView.style.display = 'none';
             elements.emptyState.style.display = 'block';
 
-            if (state.searchQuery) {
-                elements.emptyStateDesc.textContent = `Tidak ditemukan booking yang sesuai kata kunci "${state.searchQuery}".`;
+            if (state.searchQuery || state.statusFilter !== 'all') {
+                elements.emptyStateDesc.textContent = `Tidak ditemukan pengingat yang cocok dengan kriteria pencarian/filter.`;
             } else {
-                elements.emptyStateDesc.textContent = 'Belum ada booking yang tercatat. Klik tombol di bawah untuk membuat reservasi baru.';
+                elements.emptyStateDesc.textContent = 'Semua agenda bersih! Klik tombol di bawah untuk membuat pengingat deadline baru.';
             }
             return;
         }
@@ -288,41 +382,63 @@
     function renderTable() {
         elements.bookingsTbody.innerHTML = '';
 
-        state.bookings.forEach((item) => {
+        state.reminders.forEach((item) => {
             const tr = document.createElement('tr');
-            const statusInfo = getStatusInfo(item.booking_date);
-            const initials = getInitials(item.customer_name);
-            const formattedDate = formatIndonesianDate(item.booking_date);
+            if (item.is_completed) tr.classList.add('is-completed');
+
+            const statusInfo = getDeadlineStatus(item.deadline_date, item.is_completed);
+            const priorityBadge = getPriorityBadgeHtml(item.priority);
+            const formattedDate = formatIndonesianDate(item.deadline_date);
 
             tr.innerHTML = `
-                <td style="font-weight: 700; color: var(--text-muted);">#${item.id}</td>
-                <td>
-                    <div class="customer-cell">
-                        <div class="avatar-circle" title="${escapeHtml(item.customer_name)}">${initials}</div>
-                        <span class="customer-name">${escapeHtml(item.customer_name)}</span>
+                <td style="text-align: center;">
+                    <div class="todo-checkbox-wrapper">
+                        <input type="checkbox" class="todo-checkbox" ${item.is_completed ? 'checked' : ''} title="Tandai selesai / belum">
                     </div>
                 </td>
                 <td>
-                    <span class="service-tag">${escapeHtml(item.service)}</span>
+                    <div class="reminder-title-cell">
+                        <span class="reminder-title">${escapeHtml(item.title)}</span>
+                        ${item.notes ? `<span class="reminder-notes">${escapeHtml(item.notes)}</span>` : ''}
+                    </div>
                 </td>
+                <td>${priorityBadge}</td>
                 <td>
-                    <span style="font-weight: 500;">${formattedDate}</span>
+                    <div style="font-weight: 700; font-size: 0.88rem;">${formattedDate}</div>
+                    <small style="color: var(--text-muted); font-weight: 700;">⏰ ${item.deadline_time || '09:00'} WIB</small>
                 </td>
                 <td>
                     <span class="badge-status ${statusInfo.badgeClass}">${statusInfo.label}</span>
                 </td>
                 <td style="text-align: center;">
-                    <button type="button" class="btn-icon-danger" data-id="${item.id}" title="Batalkan booking">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                    </button>
+                    <div class="table-actions-cell">
+                        <button type="button" class="btn-icon-email" title="Kirim email notifikasi">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="btn-icon-danger" title="Hapus pengingat">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </td>
             `;
 
+            // Checkbox Toggle
+            const checkbox = tr.querySelector('.todo-checkbox');
+            checkbox.addEventListener('change', () => toggleCompleted(item.id));
+
+            // Email Button
+            const emailBtn = tr.querySelector('.btn-icon-email');
+            emailBtn.addEventListener('click', () => openEmailModal(item));
+
+            // Delete Button
             const deleteBtn = tr.querySelector('.btn-icon-danger');
-            deleteBtn.addEventListener('click', () => openDeleteModal(item.id, item.customer_name));
+            deleteBtn.addEventListener('click', () => openDeleteModal(item.id, item.title));
 
             elements.bookingsTbody.appendChild(tr);
         });
@@ -331,34 +447,29 @@
     function renderGrid() {
         elements.gridView.innerHTML = '';
 
-        state.bookings.forEach((item) => {
+        state.reminders.forEach((item) => {
             const card = document.createElement('div');
             card.className = 'booking-card';
+            if (item.is_completed) card.style.opacity = '0.7';
 
-            const statusInfo = getStatusInfo(item.booking_date);
-            const initials = getInitials(item.customer_name);
-            const formattedDate = formatIndonesianDate(item.booking_date);
+            const statusInfo = getDeadlineStatus(item.deadline_date, item.is_completed);
+            const priorityBadge = getPriorityBadgeHtml(item.priority);
+            const formattedDate = formatIndonesianDate(item.deadline_date);
 
             card.innerHTML = `
                 <div class="booking-card-header">
-                    <div class="customer-cell">
-                        <div class="avatar-circle">${initials}</div>
+                    <div style="display: flex; align-items: center; gap: 0.65rem;">
+                        <input type="checkbox" class="todo-checkbox" ${item.is_completed ? 'checked' : ''} title="Tandai selesai">
                         <div>
-                            <div class="customer-name">${escapeHtml(item.customer_name)}</div>
-                            <small style="color: var(--text-muted);">ID Booking #${item.id}</small>
+                            <div class="reminder-title" style="${item.is_completed ? 'text-decoration: line-through;' : ''}">${escapeHtml(item.title)}</div>
+                            <small style="color: var(--text-muted); font-weight: 700;">#${item.id}</small>
                         </div>
                     </div>
-                    <span class="badge-status ${statusInfo.badgeClass}">${statusInfo.label}</span>
+                    ${priorityBadge}
                 </div>
 
                 <div class="booking-card-body">
-                    <div class="card-service-row">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                            <polyline points="2 17 12 22 22 17"></polyline>
-                        </svg>
-                        <span>${escapeHtml(item.service)}</span>
-                    </div>
+                    ${item.notes ? `<div class="reminder-notes" style="background: rgba(0,0,0,0.03); padding: 0.5rem; border: 1px dashed #000; border-radius: 4px;">${escapeHtml(item.notes)}</div>` : ''}
                     <div class="card-date-row">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
@@ -366,23 +477,32 @@
                             <line x1="8" y1="2" x2="8" y2="6"></line>
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                         </svg>
-                        <span>${formattedDate}</span>
+                        <span>${formattedDate} • ⏰ ${item.deadline_time || '09:00'}</span>
                     </div>
                 </div>
 
                 <div class="booking-card-footer">
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">${item.booking_date}</span>
-                    <button type="button" class="btn-icon-danger" title="Batalkan booking">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                    </button>
+                    <span class="badge-status ${statusInfo.badgeClass}">${statusInfo.label}</span>
+                    <div style="display: flex; gap: 0.4rem;">
+                        <button type="button" class="btn-icon-email" title="Kirim email notifikasi">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                <polyline points="22,6 12,13 2,6"></polyline>
+                            </svg>
+                        </button>
+                        <button type="button" class="btn-icon-danger" title="Hapus pengingat">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             `;
 
-            const deleteBtn = card.querySelector('.btn-icon-danger');
-            deleteBtn.addEventListener('click', () => openDeleteModal(item.id, item.customer_name));
+            card.querySelector('.todo-checkbox').addEventListener('change', () => toggleCompleted(item.id));
+            card.querySelector('.btn-icon-email').addEventListener('click', () => openEmailModal(item));
+            card.querySelector('.btn-icon-danger').addEventListener('click', () => openDeleteModal(item.id, item.title));
 
             elements.gridView.appendChild(card);
         });
@@ -395,64 +515,59 @@
         const year = state.calendarYear;
         const month = state.calendarMonth;
 
-        // Month Title
         elements.calendarMonthYear.textContent = `${MONTH_NAMES[month]} ${year}`;
 
-        // Map bookings by date string YYYY-MM-DD
-        const bookingsMap = new Map();
-        let monthBookingsCount = 0;
+        const remindersMap = new Map();
+        let monthRemindersCount = 0;
         const currentMonthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-        state.bookings.forEach((b) => {
-            if (!bookingsMap.has(b.booking_date)) {
-                bookingsMap.set(b.booking_date, []);
+        state.reminders.forEach((r) => {
+            if (!remindersMap.has(r.deadline_date)) {
+                remindersMap.set(r.deadline_date, []);
             }
-            bookingsMap.get(b.booking_date).push(b);
-            if (b.booking_date.startsWith(currentMonthPrefix)) {
-                monthBookingsCount++;
+            remindersMap.get(r.deadline_date).push(r);
+            if (r.deadline_date.startsWith(currentMonthPrefix)) {
+                monthRemindersCount++;
             }
         });
 
-        elements.calendarMonthTotal.textContent = `${monthBookingsCount} booking di bulan ini`;
+        elements.calendarMonthTotal.textContent = `${monthRemindersCount} tugas bulan ini`;
 
-        // Calculate days
         const firstDayDate = new Date(year, month, 1);
-        // Monday=0 ... Sunday=6
         const startDayIndex = (firstDayDate.getDay() + 6) % 7;
         const daysInMonth = new Date(year, month + 1, 0).getDate();
         const daysInPrevMonth = new Date(year, month, 0).getDate();
 
         elements.calendarDaysContainer.innerHTML = '';
 
-        // Previous Month Trailing Days
+        // Prev month trailing
         for (let i = startDayIndex - 1; i >= 0; i--) {
             const dayNum = daysInPrevMonth - i;
             const prevMonthDate = new Date(year, month - 1, dayNum);
             const dateStr = formatDateString(prevMonthDate);
-            appendCalendarCell(dayNum, dateStr, true, bookingsMap.get(dateStr) || []);
+            appendCalendarCell(dayNum, dateStr, true, remindersMap.get(dateStr) || []);
         }
 
-        // Current Month Days
+        // Current month
         for (let day = 1; day <= daysInMonth; day++) {
             const currDate = new Date(year, month, day);
             const dateStr = formatDateString(currDate);
-            appendCalendarCell(day, dateStr, false, bookingsMap.get(dateStr) || []);
+            appendCalendarCell(day, dateStr, false, remindersMap.get(dateStr) || []);
         }
 
-        // Next Month Leading Days to fill grid rows (multiple of 7)
+        // Next month leading
         const totalRendered = startDayIndex + daysInMonth;
         const remainingCells = (7 - (totalRendered % 7)) % 7;
         for (let nextDay = 1; nextDay <= remainingCells; nextDay++) {
             const nextMonthDate = new Date(year, month + 1, nextDay);
             const dateStr = formatDateString(nextMonthDate);
-            appendCalendarCell(nextDay, dateStr, true, bookingsMap.get(dateStr) || []);
+            appendCalendarCell(nextDay, dateStr, true, remindersMap.get(dateStr) || []);
         }
 
-        // Render selected day detail
         renderSelectedDateDetails();
     }
 
-    function appendCalendarCell(dayNumber, dateStr, isOtherMonth, dayBookings) {
+    function appendCalendarCell(dayNumber, dateStr, isOtherMonth, dayReminders) {
         const cell = document.createElement('div');
         cell.className = 'calendar-day-cell';
 
@@ -460,16 +575,17 @@
         if (dateStr === state.todayDateStr) cell.classList.add('is-today');
         if (dateStr === state.selectedCalendarDate) cell.classList.add('is-selected');
 
-        const count = dayBookings.length;
+        const count = dayReminders.length;
         const countHtml = count > 0 ? `<span class="day-booking-count">${count}</span>` : '';
 
         let chipsHtml = '';
         let dotsHtml = '';
         if (count > 0) {
             chipsHtml = '<div class="day-bookings-list">';
-            const displayList = dayBookings.slice(0, 2);
-            displayList.forEach(b => {
-                chipsHtml += `<div class="day-chip" title="${escapeHtml(b.customer_name)} - ${escapeHtml(b.service)}">${escapeHtml(b.customer_name)}</div>`;
+            const displayList = dayReminders.slice(0, 2);
+            displayList.forEach(r => {
+                const dotColor = r.priority === 'Tinggi' ? 'var(--neo-red)' : (r.priority === 'Sedang' ? 'var(--neo-yellow)' : 'var(--neo-green)');
+                chipsHtml += `<div class="day-chip" style="border-left-color: ${dotColor};" title="${escapeHtml(r.title)} (${escapeHtml(r.priority)})">${escapeHtml(r.title)}</div>`;
             });
             if (count > 2) {
                 chipsHtml += `<div class="day-more-chip">+${count - 2} lagi</div>`;
@@ -479,7 +595,9 @@
             dotsHtml = '<div class="day-event-dots">';
             const dotCount = Math.min(count, 3);
             for (let i = 0; i < dotCount; i++) {
-                dotsHtml += '<span class="event-dot"></span>';
+                const r = dayReminders[i];
+                const dotBg = r && r.priority === 'Tinggi' ? 'var(--neo-red)' : (r && r.priority === 'Sedang' ? 'var(--neo-yellow)' : 'var(--neo-green)');
+                dotsHtml += `<span class="event-dot" style="background: ${dotBg};"></span>`;
             }
             dotsHtml += '</div>';
         }
@@ -500,7 +618,6 @@
             cell.classList.add('is-selected');
             renderSelectedDateDetails();
 
-            // Smooth scroll to selected date schedule on mobile
             if (window.innerWidth <= 768 && elements.calendarDayDetail) {
                 elements.calendarDayDetail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
@@ -513,10 +630,10 @@
         const selectedStr = state.selectedCalendarDate;
         elements.selectedDateTitle.textContent = formatIndonesianDate(selectedStr);
 
-        const dayBookings = state.bookings.filter(b => b.booking_date === selectedStr);
+        const dayReminders = state.reminders.filter(r => r.deadline_date === selectedStr);
         elements.selectedDateBookings.innerHTML = '';
 
-        if (dayBookings.length === 0) {
+        if (dayReminders.length === 0) {
             elements.selectedDateBookings.innerHTML = `
                 <div class="empty-day-message">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -524,59 +641,74 @@
                         <line x1="12" y1="8" x2="12" y2="12"></line>
                         <line x1="12" y1="16" x2="12.01" y2="16"></line>
                     </svg>
-                    <p>Tidak ada jadwal booking pada tanggal ini.</p>
+                    <p>Tidak ada pengingat deadline pada tanggal ini.</p>
                 </div>
             `;
             return;
         }
 
-        dayBookings.forEach(item => {
+        dayReminders.forEach(item => {
             const card = document.createElement('div');
             card.className = 'detail-booking-card';
-            const initials = getInitials(item.customer_name);
+
+            const priorityBadge = getPriorityBadgeHtml(item.priority);
 
             card.innerHTML = `
                 <div class="detail-booking-info">
-                    <div class="avatar-circle" style="width: 32px; height: 32px; font-size: 0.75rem;">${initials}</div>
+                    <input type="checkbox" class="todo-checkbox" ${item.is_completed ? 'checked' : ''} title="Tandai selesai">
                     <div>
-                        <div class="detail-booking-name">${escapeHtml(item.customer_name)}</div>
-                        <div class="detail-booking-service">${escapeHtml(item.service)}</div>
+                        <div class="detail-booking-name" style="${item.is_completed ? 'text-decoration: line-through;' : ''}">${escapeHtml(item.title)}</div>
+                        <div style="font-size: 0.78rem; color: var(--text-muted); font-weight: 700;">⏰ ${item.deadline_time || '09:00'} • ${priorityBadge}</div>
                     </div>
                 </div>
-                <button type="button" class="btn-icon-danger" title="Batalkan booking">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                </button>
+                <div style="display: flex; gap: 0.35rem;">
+                    <button type="button" class="btn-icon-email" title="Kirim email notifikasi">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                            <polyline points="22,6 12,13 2,6"></polyline>
+                        </svg>
+                    </button>
+                    <button type="button" class="btn-icon-danger" title="Hapus pengingat">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
             `;
 
-            const delBtn = card.querySelector('.btn-icon-danger');
-            delBtn.addEventListener('click', () => openDeleteModal(item.id, item.customer_name));
+            card.querySelector('.todo-checkbox').addEventListener('change', () => toggleCompleted(item.id));
+            card.querySelector('.btn-icon-email').addEventListener('click', () => openEmailModal(item));
+            card.querySelector('.btn-icon-danger').addEventListener('click', () => openDeleteModal(item.id, item.title));
 
             elements.selectedDateBookings.appendChild(card);
         });
     }
 
-    function formatDateString(dateObj) {
-        const y = dateObj.getFullYear();
-        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const d = String(dateObj.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-    }
-
     /* ==========================================================================
        Helpers
        ========================================================================== */
-    function getStatusInfo(bookingDateStr) {
-        const todayStr = state.todayDateStr || new Date().toISOString().split('T')[0];
-        if (bookingDateStr === todayStr) {
-            return { label: 'Hari Ini', badgeClass: 'badge-today' };
-        } else if (bookingDateStr > todayStr) {
-            return { label: 'Mendatang', badgeClass: 'badge-upcoming' };
-        } else {
-            return { label: 'Selesai / Lewat', badgeClass: 'badge-passed' };
+    function getDeadlineStatus(deadlineDateStr, isCompleted) {
+        if (isCompleted) {
+            return { label: '✓ Selesai', badgeClass: 'badge-today' };
         }
+        const todayStr = state.todayDateStr || new Date().toISOString().split('T')[0];
+        if (deadlineDateStr === todayStr) {
+            return { label: 'Hari Ini!', badgeClass: 'badge-today' };
+        } else if (deadlineDateStr < todayStr) {
+            return { label: 'Terlewat', badgeClass: 'badge-passed' };
+        } else {
+            return { label: 'Mendatang', badgeClass: 'badge-upcoming' };
+        }
+    }
+
+    function getPriorityBadgeHtml(priority) {
+        if (priority === 'Tinggi') {
+            return '<span class="badge-priority-high">🔴 Tinggi</span>';
+        } else if (priority === 'Rendah') {
+            return '<span class="badge-priority-low">🟢 Rendah</span>';
+        }
+        return '<span class="badge-priority-medium">🟡 Sedang</span>';
     }
 
     function formatIndonesianDate(dateString) {
@@ -594,16 +726,16 @@
         }
     }
 
-    function getInitials(name) {
-        if (!name) return '??';
-        const parts = name.trim().split(/\s+/);
-        if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
-        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    function formatDateString(dateObj) {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
     }
 
     function escapeHtml(str) {
         if (!str) return '';
-        return str
+        return String(str)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
@@ -617,7 +749,7 @@
     function openAddModal(prefilledDate = null) {
         elements.bookingForm.reset();
         hideFormError();
-        clearPillSelection();
+        setPriorityPill('Sedang');
 
         if (prefilledDate) {
             elements.inputBookingDate.value = prefilledDate;
@@ -625,6 +757,7 @@
             initDefaultDate();
         }
 
+        elements.inputDeadlineTime.value = '09:00';
         elements.addModal.classList.add('active');
         elements.addModal.setAttribute('aria-hidden', 'false');
         setTimeout(() => elements.inputCustomerName.focus(), 100);
@@ -635,9 +768,9 @@
         elements.addModal.setAttribute('aria-hidden', 'true');
     }
 
-    function openDeleteModal(id, customerName) {
+    function openDeleteModal(id, title) {
         state.deletingId = id;
-        elements.deleteConfirmationText.innerHTML = `Apakah Anda yakin ingin membatalkan booking untuk <strong>${escapeHtml(customerName)}</strong> (ID #${id})?`;
+        elements.deleteConfirmationText.innerHTML = `Apakah Anda yakin ingin menghapus pengingat <strong>${escapeHtml(title)}</strong> (ID #${id})?`;
         elements.deleteModal.classList.add('active');
         elements.deleteModal.setAttribute('aria-hidden', 'false');
     }
@@ -646,6 +779,43 @@
         state.deletingId = null;
         elements.deleteModal.classList.remove('active');
         elements.deleteModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function openEmailModal(reminder) {
+        state.targetEmailReminder = reminder;
+        elements.emailPreviewSubject.textContent = `🔔 [Pengingat: ${reminder.priority}] ${reminder.title}`;
+        elements.emailPreviewBody.textContent = 
+`Halo Faiz!
+
+Ini adalah pengingat untuk tugas Anda:
+-----------------------------------------
+📌 Judul Tugas  : ${reminder.title}
+⚡ Prioritas    : ${reminder.priority}
+📅 Deadline     : ${reminder.deadline_date}
+⏰ Jam          : ${reminder.deadline_time || '09:00'} WIB
+📝 Catatan      : ${reminder.notes || '-'}
+-----------------------------------------
+Semangat menyelesaikan tugasnya!`;
+
+        elements.emailModal.classList.add('active');
+        elements.emailModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeEmailModal() {
+        state.targetEmailReminder = null;
+        elements.emailModal.classList.remove('active');
+        elements.emailModal.setAttribute('aria-hidden', 'true');
+    }
+
+    function openOutboxModal() {
+        elements.outboxModal.classList.add('active');
+        elements.outboxModal.setAttribute('aria-hidden', 'false');
+        loadEmailLogs();
+    }
+
+    function closeOutboxModal() {
+        elements.outboxModal.classList.remove('active');
+        elements.outboxModal.setAttribute('aria-hidden', 'true');
     }
 
     function showFormError(msg) {
@@ -665,7 +835,7 @@
             textSpan.textContent = 'Menyimpan...';
             spinner.style.display = 'inline-block';
         } else {
-            textSpan.textContent = 'Simpan Booking';
+            textSpan.textContent = 'Simpan Pengingat';
             spinner.style.display = 'none';
         }
     }
@@ -689,9 +859,12 @@
         }, 3500);
     }
 
-    function clearPillSelection() {
-        const activePills = elements.servicePills.querySelectorAll('.pill-badge.active');
-        activePills.forEach(p => p.classList.remove('active'));
+    function setPriorityPill(priority) {
+        elements.inputService.value = priority;
+        const pills = elements.priorityPills.querySelectorAll('.pill-badge');
+        pills.forEach(p => {
+            p.classList.toggle('active', p.getAttribute('data-priority') === priority);
+        });
     }
 
     function setQuickDate(offsetDays) {
@@ -711,7 +884,7 @@
         elements.viewCalendarBtn.classList.toggle('active', viewName === 'calendar');
         elements.viewCalendarBtn.setAttribute('aria-pressed', viewName === 'calendar');
 
-        renderBookings();
+        renderReminders();
     }
 
     /* ==========================================================================
@@ -729,8 +902,8 @@
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(async () => {
                 state.searchQuery = query;
-                await fetchBookings();
-                renderBookings();
+                await fetchReminders();
+                renderReminders();
             }, 300);
         });
 
@@ -738,15 +911,22 @@
             elements.searchInput.value = '';
             elements.clearSearchBtn.style.display = 'none';
             state.searchQuery = '';
-            await fetchBookings();
-            renderBookings();
+            await fetchReminders();
+            renderReminders();
+        });
+
+        // Status Filter
+        elements.statusFilterSelect.addEventListener('change', async (e) => {
+            state.statusFilter = e.target.value;
+            await fetchReminders();
+            renderReminders();
         });
 
         // Sort
         elements.sortSelect.addEventListener('change', async (e) => {
             state.sortBy = e.target.value;
-            await fetchBookings();
-            renderBookings();
+            await fetchReminders();
+            renderReminders();
         });
 
         // View toggle buttons
@@ -781,7 +961,7 @@
             renderCalendar();
         });
 
-        // Calendar +Booking on date shortcut
+        // Calendar +Pengingat shortcut
         elements.btnAddOnDate.addEventListener('click', () => {
             openAddModal(state.selectedCalendarDate);
         });
@@ -792,12 +972,31 @@
         elements.closeModalBtn.addEventListener('click', closeAddModal);
         elements.cancelModalBtn.addEventListener('click', closeAddModal);
 
-        // Click outside modal to close
-        elements.addModal.addEventListener('click', (e) => {
-            if (e.target === elements.addModal) closeAddModal();
+        // Outbox modal triggers
+        elements.openOutboxBtn.addEventListener('click', openOutboxModal);
+        elements.closeOutboxModalBtn.addEventListener('click', closeOutboxModal);
+        elements.closeOutboxBtn.addEventListener('click', closeOutboxModal);
+
+        // Email modal triggers
+        elements.closeEmailModalBtn.addEventListener('click', closeEmailModal);
+        elements.cancelEmailBtn.addEventListener('click', closeEmailModal);
+        elements.confirmSendEmailBtn.addEventListener('click', () => {
+            if (state.targetEmailReminder) {
+                const recipient = elements.emailRecipientInput.value.trim() || 'faizfaqot23@gmail.com';
+                sendEmailNotification(state.targetEmailReminder.id, recipient);
+            }
         });
-        elements.deleteModal.addEventListener('click', (e) => {
-            if (e.target === elements.deleteModal) closeDeleteModal();
+
+        // Click outside modal to close
+        [elements.addModal, elements.deleteModal, elements.emailModal, elements.outboxModal].forEach(modal => {
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove('active');
+                        modal.setAttribute('aria-hidden', 'true');
+                    }
+                });
+            }
         });
 
         // ESC key to close modals
@@ -805,20 +1004,17 @@
             if (e.key === 'Escape') {
                 closeAddModal();
                 closeDeleteModal();
+                closeEmailModal();
+                closeOutboxModal();
             }
         });
 
-        // Service Pills selection
-        elements.servicePills.addEventListener('click', (e) => {
+        // Priority Pills selection
+        elements.priorityPills.addEventListener('click', (e) => {
             const pill = e.target.closest('.pill-badge');
             if (!pill) return;
-            clearPillSelection();
-            pill.classList.add('active');
-            elements.inputService.value = pill.getAttribute('data-service');
-        });
-
-        elements.inputService.addEventListener('input', () => {
-            clearPillSelection();
+            const priority = pill.getAttribute('data-priority');
+            setPriorityPill(priority);
         });
 
         // Quick date buttons
@@ -826,22 +1022,26 @@
         elements.btnDateTomorrow.addEventListener('click', () => setQuickDate(1));
         elements.btnDateNextWeek.addEventListener('click', () => setQuickDate(7));
 
-        // Booking form submission
+        // Form submission
         elements.bookingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const customerName = elements.inputCustomerName.value.trim();
-            const service = elements.inputService.value.trim();
-            const bookingDate = elements.inputBookingDate.value.trim();
+            const title = elements.inputCustomerName.value.trim();
+            const priority = elements.inputService.value.trim() || 'Sedang';
+            const deadlineDate = elements.inputBookingDate.value.trim();
+            const deadlineTime = elements.inputDeadlineTime.value.trim() || '09:00';
+            const notes = elements.inputNotes.value.trim();
 
-            if (!customerName || !service || !bookingDate) {
-                showFormError('Mohon lengkapi semua kolom yang wajib diisi.');
+            if (!title || !deadlineDate) {
+                showFormError('Judul tugas dan tanggal deadline wajib diisi.');
                 return;
             }
 
-            await submitBooking({
-                customer_name: customerName,
-                service: service,
-                booking_date: bookingDate
+            await submitReminder({
+                title: title,
+                priority: priority,
+                deadline_date: deadlineDate,
+                deadline_time: deadlineTime,
+                notes: notes
             });
         });
 
@@ -849,7 +1049,7 @@
         elements.cancelDeleteBtn.addEventListener('click', closeDeleteModal);
         elements.confirmDeleteBtn.addEventListener('click', () => {
             if (state.deletingId) {
-                deleteBooking(state.deletingId);
+                deleteReminder(state.deletingId);
             }
         });
 
@@ -895,7 +1095,7 @@
         window.addEventListener('appinstalled', () => {
             installBtn.style.display = 'none';
             deferredPrompt = null;
-            showToast('Aplikasi Sistem Booking sudah terpasang!', 'success');
+            showToast('Aplikasi Faiz Reminder sudah terpasang!', 'success');
         });
     }
 

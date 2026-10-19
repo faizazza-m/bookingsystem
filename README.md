@@ -1,57 +1,47 @@
-# Sistem Booking Modern & Ringan
+# Faiz Reminder - Personal Deadline & Task Manager
 
-Aplikasi manajemen booking dan reservasi dengan antarmuka web modern (Glassmorphism UI) serta antarmuka CLI terminal, menggunakan Python dan SQLite tanpa dependensi eksternal.
+Aplikasi pengingat tugas, agenda, dan deadline pribadi dengan antarmuka **Neo-Brutalism**, kalender interaktif, dukungan **PWA**, serta simulasi **notifikasi email**, dibangun dengan Python murni dan SQLite tanpa dependensi eksternal.
 
-## Teknologi
-- **Python 3** (standar library murni, tanpa `pip install`)
-- **SQLite** (database lokal otomatis di file `bookings.db`)
-- **Modern Vanilla Web** (HTML5 Semantic, CSS3 Glassmorphism & Custom Properties, Vanilla JavaScript ES6+)
+## 🚀 Fitur Unggulan
+1. **Todo Checklist & Deadline**:
+   - Centang tugas yang sudah selesai dengan checkbox interaktif
+   - Tiga tingkat prioritas visual: 🔴 **Tinggi**, 🟡 **Sedang**, 🟢 **Rendah**
+   - Penentuan tanggal dan jam deadline (WIB)
+2. **Notifikasi Email (Simulasi & Outbox Log)**:
+   - Kirim notifikasi pengingat tugas langsung ke email (default: `faizfaqot23@gmail.com`)
+   - Modal preview pesan email sebelum dikirim
+   - Riwayat log pengiriman email keluar (*Outbox*)
+3. **Kalender Interaktif (Mobile-Optimized)**:
+   - Tampilan visual bulanan dengan titik indikator prioritas (*event dots*)
+   - Klik tanggal untuk melihat daftar tugas yang harus diselesaikan pada hari tersebut
+4. **PWA (Progressive Web App)**:
+   - Tombol **"Pasang App"** untuk menginstal langsung ke layar utama Android, iOS, atau Desktop
+5. **Mode Terminal (CLI)**:
+   - Kelola tugas dan kirim email pengingat langsung dari terminal
 
 ---
 
-## Cara Menjalankan
+## 🛠️ Cara Menjalankan
 
 ### 1. Antarmuka Web (Rekomendasi)
-Jalankan server lokal bawaan:
 ```bash
 python3 server.py
 ```
-Buka peramban (browser) di: **[http://localhost:8000](http://localhost:8000)**
+Buka browser di: **[http://localhost:8000](http://localhost:8000)**
 
 ### 2. Antarmuka Terminal (CLI)
-Jika ingin menggunakan mode teks interaktif di terminal:
 ```bash
 python3 booking_system.py
 ```
 
 ---
 
-## Fitur Unggulan Antarmuka Web
-1. **Dasbor Statistik & KPI**:
-   - Total Booking
-   - Booking Hari Ini
-   - Booking Mendatang / Aktif
-   - Layanan Paling Populer
-2. **Pencarian & Penyortiran Real-Time**:
-   - Cari instan berdasarkan nama pelanggan atau layanan
-   - Urutkan berdasarkan data terbaru, tanggal terdekat, tanggal terjauh, atau nama A-Z
-3. **Pilihan Tampilan Fleksibel**:
-   - *Table View*: Tampilan tabel profesional lengkap dengan status badge interaktif
-   - *Grid Card View*: Tampilan kartu visual dengan inisial avatar dinamis
-4. **Formulir Interaktif (Modal)**:
-   - Quick pills pilihan kategori layanan
-   - Shortcut tanggal ("Hari Ini", "Besok", "+7 Hari")
-   - Validasi formulir otomatis
-5. **Tema Gelap & Terang**:
-   - Dilengkapi tema *Dark Mode* default yang elegan dan toggle *Light Mode* yang tersimpan di browser
-6. **Sinkronisasi Data**:
-   - Data yang dibuat melalui Web maupun CLI tersimpan di database yang sama (`bookings.db`)
-
----
-
-## Struktur Database
-Tabel `bookings`:
-- `id` (INTEGER, Primary Key AUTOINCREMENT)
-- `customer_name` (TEXT)
-- `service` (TEXT)
-- `booking_date` (TEXT, format `YYYY-MM-DD`)
+## 📂 Struktur Berkas
+- `server.py`: Server HTTP & REST API Python (database, reminders, email handler)
+- `booking_system.py`: Program CLI interaktif
+- `public/index.html`: Antarmuka web utama
+- `public/styles.css`: Desain Neo-Brutalism responsif
+- `public/app.js`: Logika aplikasi frontend & PWA
+- `public/manifest.json`: Konfigurasi Web App Manifest PWA
+- `public/sw.js`: Service worker untuk caching offline
+- `public/icons/`: Ikon aplikasi PWA (192px, 512px, apple-touch, favicon)
