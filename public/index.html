@@ -6,6 +6,15 @@
     <meta name="description" content="Sistem Booking Sederhana dan Modern untuk mencatat, memantau, dan mengelola reservasi pelanggan secara real-time.">
     <title>Sistem Booking Modern</title>
     
+    <meta name="theme-color" content="#fde047">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="BookEase">
+    <link rel="icon" type="image/png" href="/icons/favicon.png">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.json">
+    
     <!-- Google Fonts: Plus Jakarta Sans -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,6 +44,14 @@
             </div>
 
             <div class="header-actions">
+                <button type="button" class="btn-pwa-install" id="pwa-install-btn" style="display: none;" title="Pasang aplikasi ke layar utama">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Pasang App</span>
+                </button>
                 <div class="live-clock" id="live-clock">
                     <span id="clock-time">00:00:00</span>
                     <span id="clock-date" class="clock-date">-</span>

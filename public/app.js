@@ -852,12 +852,61 @@
                 deleteBooking(state.deletingId);
             }
         });
+
+        // PWA Install Prompt
+        setupPWAInstall();
+    }
+
+    /* ==========================================================================
+       PWA Service Worker & Install Support
+       ========================================================================== */
+    function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((reg) => console.log('PWA Service Worker terdaftar:', reg.scope))
+                    .catch((err) => console.warn('PWA SW gagal didaftarkan:', err));
+            });
+        }
+    }
+
+    let deferredPrompt = null;
+    function setupPWAInstall() {
+        const installBtn = document.getElementById('pwa-install-btn');
+        if (!installBtn) return;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.style.display = 'inline-flex';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const choice = await deferredPrompt.userChoice;
+            if (choice.outcome === 'accepted') {
+                showToast('Aplikasi berhasil dipasang di layar utama!', 'success');
+            }
+            deferredPrompt = null;
+            installBtn.style.display = 'none';
+        });
+
+        window.addEventListener('appinstalled', () => {
+            installBtn.style.display = 'none';
+            deferredPrompt = null;
+            showToast('Aplikasi Sistem Booking sudah terpasang!', 'success');
+        });
     }
 
     // Run on DOM ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', () => {
+            init();
+            registerServiceWorker();
+        });
     } else {
         init();
+        registerServiceWorker();
     }
 })();

@@ -1,0 +1,48 @@
+{
+  "id": "/?source=pwa",
+  "name": "Sistem Booking - Reservasi & Jadwal",
+  "short_name": "BookEase",
+  "description": "Aplikasi manajemen jadwal dan booking praktis dengan antarmuka Neo-Brutalism responsif.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#fdf6ec",
+  "theme_color": "#fde047",
+  "lang": "id",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tambah Booking",
+      "short_name": "+ Booking",
+      "description": "Buka form tambah reservasi baru",
+      "url": "/#tambah",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "categories": ["productivity", "business", "utilities"]
+}

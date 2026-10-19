@@ -190,6 +190,40 @@ body {
     font-weight: 700;
 }
 
+.btn-pwa-install {
+    background: var(--neo-green);
+    color: #000000;
+    border: var(--border);
+    padding: 0.55rem 1.1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    font-weight: 900;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+}
+
+.btn-pwa-install:hover {
+    background: var(--neo-green-hover);
+    transform: translate(-2px, -2px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-pwa-install:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+}
+
+.btn-pwa-install svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.5;
+}
+
 .btn-theme-toggle {
     background: var(--neo-yellow);
     border: var(--border);
