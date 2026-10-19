@@ -6,8 +6,8 @@
 
 :root {
     /* Base Colors - Neo-Brutalist Light (Default) */
-    --bg-base: #f7f5f0;
-    --bg-pattern: radial-gradient(rgba(0, 0, 0, 0.08) 1.5px, transparent 1.5px);
+    --bg-base: #fdf6ec;
+    --bg-pattern: radial-gradient(#000000 1.2px, transparent 1.2px);
     --bg-surface: #ffffff;
     --bg-surface-elevated: #ffffff;
     --border-color: #000000;
@@ -15,9 +15,9 @@
     --border: var(--border-width) solid var(--border-color);
 
     /* Text Colors */
-    --text-primary: #0f172a;
-    --text-secondary: #334155;
-    --text-muted: #64748b;
+    --text-primary: #000000;
+    --text-secondary: #262626;
+    --text-muted: #525252;
 
     /* Neo-Brutalist Pop Color Palette */
     --neo-yellow: #fde047;
@@ -52,10 +52,10 @@
 
 /* Neo-Brutalist Dark Mode */
 [data-theme="dark"] {
-    --bg-base: #0f1117;
-    --bg-pattern: radial-gradient(rgba(255, 255, 255, 0.07) 1.5px, transparent 1.5px);
-    --bg-surface: #1a1d26;
-    --bg-surface-elevated: #242834;
+    --bg-base: #12131a;
+    --bg-pattern: radial-gradient(#2d3142 1.2px, transparent 1.2px);
+    --bg-surface: #1e202c;
+    --bg-surface-elevated: #282a3a;
     --border-color: #000000;
     --border: var(--border-width) solid #000000;
 
