@@ -1509,10 +1509,19 @@ body {
 }
 
 @media (max-width: 768px) {
+    .app-container {
+        padding: 1.5rem 1rem 4rem;
+    }
+
     .app-header {
         flex-direction: column;
         align-items: stretch;
-        padding: 1.35rem;
+        padding: 1.25rem;
+        gap: 1.25rem;
+    }
+
+    .brand-title {
+        font-size: 1.6rem;
     }
 
     .header-actions {
@@ -1522,6 +1531,7 @@ body {
     .panel-toolbar {
         flex-direction: column;
         align-items: stretch;
+        gap: 1.25rem;
     }
 
     .search-filter-group {
@@ -1537,4 +1547,118 @@ body {
         flex: 1;
         justify-content: center;
     }
+
+    .content-panel {
+        padding: 1.25rem;
+    }
 }
+
+@media (max-width: 576px) {
+    .app-container {
+        padding: 1rem 0.75rem 3.5rem;
+    }
+
+    .header-brand {
+        gap: 0.85rem;
+    }
+
+    .brand-logo {
+        width: 46px;
+        height: 46px;
+    }
+
+    .brand-title {
+        font-size: 1.35rem;
+    }
+
+    .brand-subtitle {
+        font-size: 0.85rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .action-buttons-group {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.75rem;
+    }
+
+    .view-switcher {
+        width: 100%;
+    }
+
+    .btn-view-toggle {
+        flex: 1;
+    }
+
+    .btn-primary {
+        width: 100%;
+    }
+
+    /* Mobile Calendar Grid */
+    .calendar-main-card {
+        padding: 1rem 0.75rem;
+    }
+
+    .calendar-title {
+        font-size: 1.25rem;
+    }
+
+    .calendar-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .calendar-nav-buttons {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .calendar-grid-days {
+        gap: 4px;
+    }
+
+    .calendar-day-cell {
+        min-height: 60px;
+        padding: 0.35rem 0.25rem;
+        box-shadow: 1px 1px 0px #000000;
+    }
+
+    .day-number {
+        font-size: 0.82rem;
+    }
+
+    .calendar-day-cell.is-today .day-number {
+        width: 22px;
+        height: 22px;
+        font-size: 0.75rem;
+    }
+
+    .day-chip {
+        font-size: 0.65rem;
+        padding: 1px 3px;
+        margin-top: 2px;
+    }
+
+    /* Modal adjustments on mobile */
+    .modal-card {
+        margin: 0.75rem;
+        max-width: calc(100vw - 1.5rem);
+    }
+
+    .modal-header, .modal-body, .modal-footer {
+        padding: 1.25rem 1rem;
+    }
+
+    .toast-container {
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        max-width: none;
+    }
+}
+
