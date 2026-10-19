@@ -192,7 +192,11 @@
             status: state.statusFilter,
             sort: state.sortBy
         });
-        const response = await fetch(`/api/reminders?${params.toString()}`);
+        let response = await fetch(`/api/reminders?${params.toString()}`);
+        if (!response.ok) {
+            // Fallback to /api/bookings if server is still running previous process
+            response = await fetch(`/api/bookings?${params.toString()}`);
+        }
         if (!response.ok) throw new Error('Gagal mengambil daftar pengingat');
         const result = await response.json();
         state.reminders = result.data || [];
@@ -205,8 +209,8 @@
         if (result.success && result.stats) {
             elements.statTotal.textContent = result.stats.total;
             elements.statToday.textContent = result.stats.today;
-            elements.statUpcoming.textContent = result.stats.high_priority;
-            elements.statTopService.textContent = result.stats.completed;
+            elements.statUpcoming.textContent = result.stats.high_priority || result.stats.upcoming || 0;
+            elements.statTopService.textContent = result.stats.completed !== undefined ? result.stats.completed : (result.stats.top_service || 0);
             state.todayDateStr = result.stats.today_date;
         }
     }
@@ -214,8 +218,10 @@
     async function toggleCompleted(id) {
         try {
             const response = await fetch(`/api/reminders/${id}/toggle`, { method: 'PUT' });
+            if (!response.ok) {
+                throw new Error('Gagal mengubah status. Pastikan server di terminal sudah di-restart.');
+            }
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Gagal mengubah status tugas');
             showToast(data.message, 'success');
             await fetchData();
         } catch (err) {
@@ -234,11 +240,11 @@
                 body: JSON.stringify(formData)
             });
 
-            const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.error || 'Gagal menambahkan pengingat');
+                throw new Error('Gagal menyimpan pengingat. Silakan restart server di terminal Anda.');
             }
 
+            const data = await response.json();
             closeAddModal();
             showToast(`Pengingat "${formData.title}" berhasil disimpan!`, 'success');
             await fetchData();
@@ -258,9 +264,8 @@
                 method: 'DELETE'
             });
 
-            const data = await response.json();
             if (!response.ok) {
-                throw new Error(data.error || 'Gagal menghapus pengingat');
+                throw new Error('Gagal menghapus pengingat');
             }
 
             closeDeleteModal();
@@ -282,12 +287,14 @@
             const response = await fetch(`/api/reminders/${id}/send-email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ recipient: recipient })
+                body: JSON.stringify({ recipient: recipient || 'azzafazzam13@gmail.com' })
             });
 
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Gagal mengirim email');
+            if (!response.ok) {
+                throw new Error('Endpoint email belum aktif. Silakan restart server di terminal (Ctrl+C lalu jalankan python3 server.py).');
+            }
 
+            const data = await response.json();
             closeEmailModal();
             showToast(data.message, 'success');
         } catch (err) {
@@ -302,8 +309,10 @@
         elements.emailLogsList.innerHTML = '<p style="text-align: center; color: var(--text-muted);">Memuat riwayat...</p>';
         try {
             const res = await fetch('/api/email-logs');
+            if (!res.ok) {
+                throw new Error('Server perlu di-restart agar fitur email aktif. Tekan Ctrl+C di terminal, lalu jalankan: python3 server.py');
+            }
             const data = await res.json();
-            if (!res.ok) throw new Error('Gagal memuat log email');
 
             if (!data.logs || data.logs.length === 0) {
                 elements.emailLogsList.innerHTML = `
@@ -332,7 +341,12 @@
                 elements.emailLogsList.appendChild(card);
             });
         } catch (err) {
-            elements.emailLogsList.innerHTML = `<p style="color: var(--neo-red); text-align: center;">${err.message}</p>`;
+            elements.emailLogsList.innerHTML = `
+                <div class="alert-banner alert-error" style="display:flex; flex-direction:column; align-items:flex-start; gap:0.5rem;">
+                    <strong>⚠️ Perlu Restart Server</strong>
+                    <p style="font-size:0.85rem;">${escapeHtml(err.message)}</p>
+                </div>
+            `;
         }
     }
 

@@ -86,7 +86,7 @@ def toggle_completed(reminder_id):
     status_label = "SELESAI ✓" if new_val == 1 else "AKTIF KEMBALI"
     print(f"\n✅ Tugas '{row['title']}' ditandai {status_label}!")
 
-def send_simulated_email(reminder_id, recipient="faizfaqot23@gmail.com"):
+def send_simulated_email(reminder_id, recipient="azzafazzam13@gmail.com"):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM reminders WHERE id = ?', (reminder_id,))
@@ -165,7 +165,7 @@ def main():
         elif choice == '4':
             try:
                 rid = int(input("Masukkan ID Pengingat yang ingin dikirimkan emailnya: "))
-                email_target = input("Kirim ke email (tekan Enter untuk faizfaqot23@gmail.com): ").strip() or "faizfaqot23@gmail.com"
+                email_target = input("Kirim ke email (tekan Enter untuk azzafazzam13@gmail.com): ").strip() or "azzafazzam13@gmail.com"
                 send_simulated_email(rid, email_target)
             except ValueError:
                 print("\nMohon masukkan angka untuk ID.")

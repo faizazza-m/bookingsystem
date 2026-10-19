@@ -346,7 +346,7 @@ class ReminderRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def handle_send_email(self, reminder_id):
         content_length = int(self.headers.get('Content-Length', 0))
-        recipient = 'faizfaqot23@gmail.com'
+        recipient = 'azzafazzam13@gmail.com'
         if content_length > 0:
             try:
                 body = self.rfile.read(content_length).decode('utf-8')
