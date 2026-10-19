@@ -156,6 +156,14 @@
                                 <rect x="3" y="14" width="7" height="7"></rect>
                             </svg>
                         </button>
+                        <button type="button" class="btn-view-toggle" id="view-calendar-btn" title="Tampilan Kalender" aria-pressed="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                        </button>
                     </div>
 
                     <button type="button" class="btn-primary" id="open-add-modal-btn">
@@ -221,6 +229,76 @@
                 <!-- Grid Card View -->
                 <div id="grid-view" class="cards-grid" style="display: none;">
                     <!-- Dynamic Grid Content -->
+                </div>
+
+                <!-- Interactive Calendar View -->
+                <div id="calendar-view" class="calendar-layout" style="display: none;">
+                    <div class="calendar-main-card">
+                        <!-- Calendar Controls -->
+                        <div class="calendar-toolbar">
+                            <div class="calendar-month-info">
+                                <h2 id="calendar-month-year" class="calendar-title">Oktober 2026</h2>
+                                <span class="calendar-total-badge" id="calendar-month-total">0 booking bulan ini</span>
+                            </div>
+                            <div class="calendar-nav-buttons">
+                                <button type="button" class="btn-cal-nav" id="btn-prev-month" aria-label="Bulan sebelumnya" title="Bulan Sebelumnya">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="15 18 9 12 15 6"></polyline>
+                                    </svg>
+                                </button>
+                                <button type="button" class="btn-cal-today" id="btn-cal-today">Hari Ini</button>
+                                <button type="button" class="btn-cal-nav" id="btn-next-month" aria-label="Bulan berikutnya" title="Bulan Berikutnya">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Weekdays Header -->
+                        <div class="calendar-weekdays-header">
+                            <div>Sen</div>
+                            <div>Sel</div>
+                            <div>Rab</div>
+                            <div>Kam</div>
+                            <div>Jum</div>
+                            <div>Sab</div>
+                            <div>Min</div>
+                        </div>
+
+                        <!-- Days Grid -->
+                        <div class="calendar-grid-days" id="calendar-days-container">
+                            <!-- Dynamically populated day cells -->
+                        </div>
+                    </div>
+
+                    <!-- Calendar Day Detail Sidebar -->
+                    <aside class="calendar-detail-panel" id="calendar-day-detail">
+                        <div class="detail-header">
+                            <div>
+                                <span class="detail-subtitle">Jadwal Tanggal</span>
+                                <h3 id="selected-date-title" class="detail-title">Pilih Tanggal</h3>
+                            </div>
+                            <button type="button" class="btn-primary btn-sm" id="btn-add-on-date">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>+ Booking</span>
+                            </button>
+                        </div>
+
+                        <div class="detail-body" id="selected-date-bookings">
+                            <div class="empty-day-message">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                </svg>
+                                <p>Tidak ada jadwal booking pada tanggal ini.</p>
+                            </div>
+                        </div>
+                    </aside>
                 </div>
             </div>
         </main>

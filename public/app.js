@@ -1,20 +1,29 @@
 /**
- * Sistem Booking Modern - Client-side Logic
+ * Sistem Booking Modern - Client-side Logic with Interactive Calendar
  * Vanilla JavaScript ES6+
  */
 
 (function () {
     'use strict';
 
+    const MONTH_NAMES = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
     // State
+    const now = new Date();
     const state = {
         bookings: [],
-        currentView: 'table', // 'table' | 'grid'
+        currentView: 'table', // 'table' | 'grid' | 'calendar'
         searchQuery: '',
         sortBy: 'id_desc',
         deletingId: null,
         theme: localStorage.getItem('booking_app_theme') || 'dark',
-        todayDateStr: new Date().toISOString().split('T')[0]
+        todayDateStr: now.toISOString().split('T')[0],
+        calendarYear: now.getFullYear(),
+        calendarMonth: now.getMonth(),
+        selectedCalendarDate: now.toISOString().split('T')[0]
     };
 
     // DOM Elements
@@ -36,6 +45,7 @@
         sortSelect: document.getElementById('sort-select'),
         viewTableBtn: document.getElementById('view-table-btn'),
         viewGridBtn: document.getElementById('view-grid-btn'),
+        viewCalendarBtn: document.getElementById('view-calendar-btn'),
         openAddModalBtn: document.getElementById('open-add-modal-btn'),
 
         // Containers
@@ -45,7 +55,19 @@
         emptyAddBtn: document.getElementById('empty-add-btn'),
         tableView: document.getElementById('table-view'),
         gridView: document.getElementById('grid-view'),
+        calendarView: document.getElementById('calendar-view'),
         bookingsTbody: document.getElementById('bookings-tbody'),
+
+        // Calendar Controls & Elements
+        calendarMonthYear: document.getElementById('calendar-month-year'),
+        calendarMonthTotal: document.getElementById('calendar-month-total'),
+        btnPrevMonth: document.getElementById('btn-prev-month'),
+        btnNextMonth: document.getElementById('btn-next-month'),
+        btnCalToday: document.getElementById('btn-cal-today'),
+        calendarDaysContainer: document.getElementById('calendar-days-container'),
+        selectedDateTitle: document.getElementById('selected-date-title'),
+        selectedDateBookings: document.getElementById('selected-date-bookings'),
+        btnAddOnDate: document.getElementById('btn-add-on-date'),
 
         // Add Modal & Form
         addModal: document.getElementById('add-modal'),
@@ -103,9 +125,9 @@
        ========================================================================== */
     function startClock() {
         function updateClock() {
-            const now = new Date();
-            elements.clockTime.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
-            elements.clockDate.textContent = now.toLocaleDateString('id-ID', {
+            const current = new Date();
+            elements.clockTime.textContent = current.toLocaleTimeString('id-ID', { hour12: false });
+            elements.clockDate.textContent = current.toLocaleDateString('id-ID', {
                 weekday: 'short',
                 day: 'numeric',
                 month: 'short',
@@ -119,7 +141,6 @@
     function initDefaultDate() {
         const today = new Date().toISOString().split('T')[0];
         elements.inputBookingDate.value = today;
-        elements.inputBookingDate.min = today;
     }
 
     /* ==========================================================================
@@ -130,6 +151,7 @@
         elements.emptyState.style.display = 'none';
         elements.tableView.style.display = 'none';
         elements.gridView.style.display = 'none';
+        elements.calendarView.style.display = 'none';
 
         try {
             await Promise.all([fetchBookings(), fetchStats()]);
@@ -219,10 +241,22 @@
     }
 
     /* ==========================================================================
-       Rendering
+       Rendering & Views
        ========================================================================== */
     function renderBookings() {
         const count = state.bookings.length;
+
+        // If in calendar view, always show calendar even when bookings = 0
+        if (state.currentView === 'calendar') {
+            elements.emptyState.style.display = 'none';
+            elements.tableView.style.display = 'none';
+            elements.gridView.style.display = 'none';
+            elements.calendarView.style.display = 'grid';
+            renderCalendar();
+            return;
+        }
+
+        elements.calendarView.style.display = 'none';
 
         if (count === 0) {
             elements.tableView.style.display = 'none';
@@ -243,7 +277,7 @@
             elements.gridView.style.display = 'none';
             elements.tableView.style.display = 'block';
             renderTable();
-        } else {
+        } else if (state.currentView === 'grid') {
             elements.tableView.style.display = 'none';
             elements.gridView.style.display = 'grid';
             renderGrid();
@@ -255,7 +289,6 @@
 
         state.bookings.forEach((item) => {
             const tr = document.createElement('tr');
-
             const statusInfo = getStatusInfo(item.booking_date);
             const initials = getInitials(item.customer_name);
             const formattedDate = formatIndonesianDate(item.booking_date);
@@ -278,7 +311,7 @@
                     <span class="badge-status ${statusInfo.badgeClass}">${statusInfo.label}</span>
                 </td>
                 <td style="text-align: center;">
-                    <button type="button" class="btn-icon-danger" data-id="${item.id}" data-name="${escapeHtml(item.customer_name)}" title="Batalkan booking">
+                    <button type="button" class="btn-icon-danger" data-id="${item.id}" title="Batalkan booking">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"></polyline>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -355,6 +388,169 @@
     }
 
     /* ==========================================================================
+       Interactive Calendar Logic
+       ========================================================================== */
+    function renderCalendar() {
+        const year = state.calendarYear;
+        const month = state.calendarMonth;
+
+        // Month Title
+        elements.calendarMonthYear.textContent = `${MONTH_NAMES[month]} ${year}`;
+
+        // Map bookings by date string YYYY-MM-DD
+        const bookingsMap = new Map();
+        let monthBookingsCount = 0;
+        const currentMonthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+        state.bookings.forEach((b) => {
+            if (!bookingsMap.has(b.booking_date)) {
+                bookingsMap.set(b.booking_date, []);
+            }
+            bookingsMap.get(b.booking_date).push(b);
+            if (b.booking_date.startsWith(currentMonthPrefix)) {
+                monthBookingsCount++;
+            }
+        });
+
+        elements.calendarMonthTotal.textContent = `${monthBookingsCount} booking di bulan ini`;
+
+        // Calculate days
+        const firstDayDate = new Date(year, month, 1);
+        // Monday=0 ... Sunday=6
+        const startDayIndex = (firstDayDate.getDay() + 6) % 7;
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+        elements.calendarDaysContainer.innerHTML = '';
+
+        // Previous Month Trailing Days
+        for (let i = startDayIndex - 1; i >= 0; i--) {
+            const dayNum = daysInPrevMonth - i;
+            const prevMonthDate = new Date(year, month - 1, dayNum);
+            const dateStr = formatDateString(prevMonthDate);
+            appendCalendarCell(dayNum, dateStr, true, bookingsMap.get(dateStr) || []);
+        }
+
+        // Current Month Days
+        for (let day = 1; day <= daysInMonth; day++) {
+            const currDate = new Date(year, month, day);
+            const dateStr = formatDateString(currDate);
+            appendCalendarCell(day, dateStr, false, bookingsMap.get(dateStr) || []);
+        }
+
+        // Next Month Leading Days to fill grid rows (multiple of 7)
+        const totalRendered = startDayIndex + daysInMonth;
+        const remainingCells = (7 - (totalRendered % 7)) % 7;
+        for (let nextDay = 1; nextDay <= remainingCells; nextDay++) {
+            const nextMonthDate = new Date(year, month + 1, nextDay);
+            const dateStr = formatDateString(nextMonthDate);
+            appendCalendarCell(nextDay, dateStr, true, bookingsMap.get(dateStr) || []);
+        }
+
+        // Render selected day detail
+        renderSelectedDateDetails();
+    }
+
+    function appendCalendarCell(dayNumber, dateStr, isOtherMonth, dayBookings) {
+        const cell = document.createElement('div');
+        cell.className = 'calendar-day-cell';
+
+        if (isOtherMonth) cell.classList.add('is-other-month');
+        if (dateStr === state.todayDateStr) cell.classList.add('is-today');
+        if (dateStr === state.selectedCalendarDate) cell.classList.add('is-selected');
+
+        const count = dayBookings.length;
+        const countHtml = count > 0 ? `<span class="day-booking-count">${count}</span>` : '';
+
+        let chipsHtml = '';
+        if (count > 0) {
+            chipsHtml = '<div class="day-bookings-list">';
+            const displayList = dayBookings.slice(0, 2);
+            displayList.forEach(b => {
+                chipsHtml += `<div class="day-chip" title="${escapeHtml(b.customer_name)} - ${escapeHtml(b.service)}">${escapeHtml(b.customer_name)}</div>`;
+            });
+            if (count > 2) {
+                chipsHtml += `<div class="day-more-chip">+${count - 2} lagi</div>`;
+            }
+            chipsHtml += '</div>';
+        }
+
+        cell.innerHTML = `
+            <div class="day-cell-header">
+                <span class="day-number">${dayNumber}</span>
+                ${countHtml}
+            </div>
+            ${chipsHtml}
+        `;
+
+        cell.addEventListener('click', () => {
+            state.selectedCalendarDate = dateStr;
+            const allCells = elements.calendarDaysContainer.querySelectorAll('.calendar-day-cell');
+            allCells.forEach(c => c.classList.remove('is-selected'));
+            cell.classList.add('is-selected');
+            renderSelectedDateDetails();
+        });
+
+        elements.calendarDaysContainer.appendChild(cell);
+    }
+
+    function renderSelectedDateDetails() {
+        const selectedStr = state.selectedCalendarDate;
+        elements.selectedDateTitle.textContent = formatIndonesianDate(selectedStr);
+
+        const dayBookings = state.bookings.filter(b => b.booking_date === selectedStr);
+        elements.selectedDateBookings.innerHTML = '';
+
+        if (dayBookings.length === 0) {
+            elements.selectedDateBookings.innerHTML = `
+                <div class="empty-day-message">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <p>Tidak ada jadwal booking pada tanggal ini.</p>
+                </div>
+            `;
+            return;
+        }
+
+        dayBookings.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'detail-booking-card';
+            const initials = getInitials(item.customer_name);
+
+            card.innerHTML = `
+                <div class="detail-booking-info">
+                    <div class="avatar-circle" style="width: 32px; height: 32px; font-size: 0.75rem;">${initials}</div>
+                    <div>
+                        <div class="detail-booking-name">${escapeHtml(item.customer_name)}</div>
+                        <div class="detail-booking-service">${escapeHtml(item.service)}</div>
+                    </div>
+                </div>
+                <button type="button" class="btn-icon-danger" title="Batalkan booking">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            `;
+
+            const delBtn = card.querySelector('.btn-icon-danger');
+            delBtn.addEventListener('click', () => openDeleteModal(item.id, item.customer_name));
+
+            elements.selectedDateBookings.appendChild(card);
+        });
+    }
+
+    function formatDateString(dateObj) {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
+    /* ==========================================================================
        Helpers
        ========================================================================== */
     function getStatusInfo(bookingDateStr) {
@@ -403,11 +599,17 @@
     /* ==========================================================================
        Modals & Toast
        ========================================================================== */
-    function openAddModal() {
+    function openAddModal(prefilledDate = null) {
         elements.bookingForm.reset();
-        initDefaultDate();
         hideFormError();
         clearPillSelection();
+
+        if (prefilledDate) {
+            elements.inputBookingDate.value = prefilledDate;
+        } else {
+            initDefaultDate();
+        }
+
         elements.addModal.classList.add('active');
         elements.addModal.setAttribute('aria-hidden', 'false');
         setTimeout(() => elements.inputCustomerName.focus(), 100);
@@ -464,10 +666,8 @@
         toast.innerHTML = `${iconSvg}<span>${escapeHtml(message)}</span>`;
         elements.toastContainer.appendChild(toast);
 
-        // Animate in
         requestAnimationFrame(() => toast.classList.add('show'));
 
-        // Dismiss after 3.5s
         setTimeout(() => {
             toast.classList.remove('show');
             setTimeout(() => toast.remove(), 300);
@@ -482,7 +682,21 @@
     function setQuickDate(offsetDays) {
         const d = new Date();
         d.setDate(d.getDate() + offsetDays);
-        elements.inputBookingDate.value = d.toISOString().split('T')[0];
+        elements.inputBookingDate.value = formatDateString(d);
+    }
+
+    function switchView(viewName) {
+        state.currentView = viewName;
+        elements.viewTableBtn.classList.toggle('active', viewName === 'table');
+        elements.viewTableBtn.setAttribute('aria-pressed', viewName === 'table');
+
+        elements.viewGridBtn.classList.toggle('active', viewName === 'grid');
+        elements.viewGridBtn.setAttribute('aria-pressed', viewName === 'grid');
+
+        elements.viewCalendarBtn.classList.toggle('active', viewName === 'calendar');
+        elements.viewCalendarBtn.setAttribute('aria-pressed', viewName === 'calendar');
+
+        renderBookings();
     }
 
     /* ==========================================================================
@@ -520,28 +734,46 @@
             renderBookings();
         });
 
-        // View toggle
-        elements.viewTableBtn.addEventListener('click', () => {
-            state.currentView = 'table';
-            elements.viewTableBtn.classList.add('active');
-            elements.viewTableBtn.setAttribute('aria-pressed', 'true');
-            elements.viewGridBtn.classList.remove('active');
-            elements.viewGridBtn.setAttribute('aria-pressed', 'false');
-            renderBookings();
+        // View toggle buttons
+        elements.viewTableBtn.addEventListener('click', () => switchView('table'));
+        elements.viewGridBtn.addEventListener('click', () => switchView('grid'));
+        elements.viewCalendarBtn.addEventListener('click', () => switchView('calendar'));
+
+        // Calendar Navigation
+        elements.btnPrevMonth.addEventListener('click', () => {
+            state.calendarMonth--;
+            if (state.calendarMonth < 0) {
+                state.calendarMonth = 11;
+                state.calendarYear--;
+            }
+            renderCalendar();
         });
 
-        elements.viewGridBtn.addEventListener('click', () => {
-            state.currentView = 'grid';
-            elements.viewGridBtn.classList.add('active');
-            elements.viewGridBtn.setAttribute('aria-pressed', 'true');
-            elements.viewTableBtn.classList.remove('active');
-            elements.viewTableBtn.setAttribute('aria-pressed', 'false');
-            renderBookings();
+        elements.btnNextMonth.addEventListener('click', () => {
+            state.calendarMonth++;
+            if (state.calendarMonth > 11) {
+                state.calendarMonth = 0;
+                state.calendarYear++;
+            }
+            renderCalendar();
+        });
+
+        elements.btnCalToday.addEventListener('click', () => {
+            const today = new Date();
+            state.calendarMonth = today.getMonth();
+            state.calendarYear = today.getFullYear();
+            state.selectedCalendarDate = formatDateString(today);
+            renderCalendar();
+        });
+
+        // Calendar +Booking on date shortcut
+        elements.btnAddOnDate.addEventListener('click', () => {
+            openAddModal(state.selectedCalendarDate);
         });
 
         // Modal triggers
-        elements.openAddModalBtn.addEventListener('click', openAddModal);
-        elements.emptyAddBtn.addEventListener('click', openAddModal);
+        elements.openAddModalBtn.addEventListener('click', () => openAddModal());
+        elements.emptyAddBtn.addEventListener('click', () => openAddModal());
         elements.closeModalBtn.addEventListener('click', closeAddModal);
         elements.cancelModalBtn.addEventListener('click', closeAddModal);
 
