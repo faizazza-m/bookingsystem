@@ -34,8 +34,11 @@
                     </svg>
                 </div>
                 <div>
-                    <h1 class="brand-title">Faiz Reminder</h1>
-                    <p class="brand-subtitle">Pengingat tugas, deadline & jadwal pribadi dengan email alert</p>
+                    <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                        <h1 class="brand-title">Faiz Reminder</h1>
+                        <span class="brand-badge">⚡ Personal Workspace</span>
+                    </div>
+                    <p class="brand-subtitle">Pengingat tugas, deadline & jadwal pribadi dengan notifikasi email</p>
                 </div>
             </div>
 
@@ -58,7 +61,10 @@
                 </button>
 
                 <div class="live-clock" id="live-clock">
-                    <span id="clock-time">00:00:00</span>
+                    <div style="display: flex; align-items: center; gap: 0.45rem;">
+                        <span class="live-indicator"></span>
+                        <span id="clock-time">00:00:00</span>
+                    </div>
                     <span id="clock-date" class="clock-date">-</span>
                 </div>
 
@@ -96,6 +102,7 @@
                 <div class="stat-details">
                     <span class="stat-label">Total Tugas</span>
                     <strong class="stat-value" id="stat-total">0</strong>
+                    <span class="stat-subtitle">Agenda keseluruhan</span>
                 </div>
             </div>
 
@@ -109,6 +116,7 @@
                 <div class="stat-details">
                     <span class="stat-label">Deadline Hari Ini</span>
                     <strong class="stat-value" id="stat-today">0</strong>
+                    <span class="stat-subtitle">Jatuh tempo sekarang</span>
                 </div>
             </div>
 
@@ -121,6 +129,7 @@
                 <div class="stat-details">
                     <span class="stat-label">Prioritas Tinggi</span>
                     <strong class="stat-value" id="stat-upcoming">0</strong>
+                    <span class="stat-subtitle">Urgensi mendesak</span>
                 </div>
             </div>
 
@@ -134,6 +143,7 @@
                 <div class="stat-details">
                     <span class="stat-label">Tugas Selesai</span>
                     <strong class="stat-value" id="stat-top-service">0</strong>
+                    <span class="stat-subtitle">Tuntas diselesaikan</span>
                 </div>
             </div>
         </section>
