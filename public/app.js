@@ -19,7 +19,7 @@
         searchQuery: '',
         sortBy: 'id_desc',
         deletingId: null,
-        theme: localStorage.getItem('booking_app_theme') || 'dark',
+        theme: localStorage.getItem('booking_app_theme') || 'light',
         todayDateStr: now.toISOString().split('T')[0],
         calendarYear: now.getFullYear(),
         calendarMonth: now.getMonth(),
