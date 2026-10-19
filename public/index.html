@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistem Booking Sederhana dan Modern untuk mencatat, memantau, dan mengelola reservasi pelanggan secara real-time.">
+    <title>Sistem Booking Modern</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Navigation Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <div class="brand-logo" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                        <circle cx="8" cy="15" r="1.5" fill="currentColor"></circle>
+                        <circle cx="16" cy="15" r="1.5" fill="currentColor"></circle>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="brand-title">Sistem Booking</h1>
+                    <p class="brand-subtitle">Kelola jadwal dan reservasi pelanggan dengan praktis</p>
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <div class="live-clock" id="live-clock">
+                    <span id="clock-time">00:00:00</span>
+                    <span id="clock-date" class="clock-date">-</span>
+                </div>
+                <button type="button" class="btn-theme-toggle" id="theme-toggle-btn" aria-label="Ganti Tema Tampilan" title="Ganti Tema">
+                    <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
+                    <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Overview Cards -->
+        <section class="stats-grid" aria-label="Statistik Ringkasan">
+            <div class="stat-card stat-total">
+                <div class="stat-icon-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                </div>
+                <div class="stat-details">
+                    <span class="stat-label">Total Booking</span>
+                    <strong class="stat-value" id="stat-total">0</strong>
+                </div>
+            </div>
+
+            <div class="stat-card stat-today">
+                <div class="stat-icon-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                </div>
+                <div class="stat-details">
+                    <span class="stat-label">Hari Ini</span>
+                    <strong class="stat-value" id="stat-today">0</strong>
+                </div>
+            </div>
+
+            <div class="stat-card stat-upcoming">
+                <div class="stat-icon-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <div class="stat-details">
+                    <span class="stat-label">Mendatang / Aktif</span>
+                    <strong class="stat-value" id="stat-upcoming">0</strong>
+                </div>
+            </div>
+
+            <div class="stat-card stat-service">
+                <div class="stat-icon-wrapper">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </div>
+                <div class="stat-details">
+                    <span class="stat-label">Layanan Populer</span>
+                    <strong class="stat-value text-ellipsis" id="stat-top-service">-</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content Panel -->
+        <main class="content-panel">
+            <!-- Toolbar Controls -->
+            <div class="panel-toolbar">
+                <div class="search-filter-group">
+                    <div class="search-input-wrapper">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Cari nama pelanggan atau layanan..." autocomplete="off">
+                        <button type="button" id="clear-search-btn" class="btn-clear-search" aria-label="Hapus pencarian" style="display:none;">&times;</button>
+                    </div>
+
+                    <div class="select-wrapper">
+                        <select id="sort-select" aria-label="Urutkan data">
+                            <option value="id_desc">Terbaru Ditambahkan</option>
+                            <option value="date_asc">Tanggal Booking (Terdekat)</option>
+                            <option value="date_desc">Tanggal Booking (Terjauh)</option>
+                            <option value="name_asc">Nama Pelanggan (A - Z)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="action-buttons-group">
+                    <div class="view-switcher" role="group" aria-label="Pilihan Tampilan">
+                        <button type="button" class="btn-view-toggle active" id="view-table-btn" title="Tampilan Tabel" aria-pressed="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="3" y1="15" x2="21" y2="15"></line>
+                                <line x1="9" y1="3" x2="9" y2="21"></line>
+                            </svg>
+                        </button>
+                        <button type="button" class="btn-view-toggle" id="view-grid-btn" title="Tampilan Kartu" aria-pressed="false">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="3" width="7" height="7"></rect>
+                                <rect x="14" y="14" width="7" height="7"></rect>
+                                <rect x="3" y="14" width="7" height="7"></rect>
+                            </svg>
+                        </button>
+                    </div>
+
+                    <button type="button" class="btn-primary" id="open-add-modal-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>Tambah Booking</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Booking List Container -->
+            <div id="booking-list-container" class="booking-list-container">
+                <!-- Loading State -->
+                <div id="loading-spinner" class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Memuat data booking...</p>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="empty-state" style="display: none;">
+                    <div class="empty-illustration">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                            <path d="M12 14v4"></path>
+                            <path d="M10 16h4"></path>
+                        </svg>
+                    </div>
+                    <h3>Belum Ada Data Booking</h3>
+                    <p id="empty-state-desc">Belum ada booking yang tercatat. Klik tombol di bawah untuk membuat reservasi baru.</p>
+                    <button type="button" class="btn-secondary" id="empty-add-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        Buat Booking Pertama
+                    </button>
+                </div>
+
+                <!-- Table View -->
+                <div id="table-view" class="table-responsive" style="display: none;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">ID</th>
+                                <th>Pelanggan</th>
+                                <th>Layanan</th>
+                                <th>Tanggal Booking</th>
+                                <th>Status</th>
+                                <th style="width: 110px; text-align: center;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookings-tbody">
+                            <!-- Dynamic Content -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Grid Card View -->
+                <div id="grid-view" class="cards-grid" style="display: none;">
+                    <!-- Dynamic Grid Content -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Form Tambah Booking -->
+    <div class="modal-backdrop" id="add-modal" aria-hidden="true" role="dialog" aria-labelledby="modal-title">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <div class="modal-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 id="modal-title" class="modal-title">Tambah Booking Baru</h2>
+                        <p class="modal-subtitle">Isi rincian reservasi pelanggan di bawah</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-modal-close" id="close-modal-btn" aria-label="Tutup modal">&times;</button>
+            </div>
+
+            <form id="booking-form" class="modal-body">
+                <div id="form-error" class="alert-banner alert-error" style="display: none;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span id="form-error-msg">Terjadi kesalahan</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-customer-name">Nama Pelanggan <span class="required">*</span></label>
+                    <div class="input-with-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <input type="text" id="input-customer-name" name="customer_name" placeholder="Misal: Budi Santoso" required autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-service">Pilih atau Ketik Layanan <span class="required">*</span></label>
+                    <div class="service-pills" id="service-pills">
+                        <button type="button" class="pill-badge" data-service="Konsultasi">Konsultasi</button>
+                        <button type="button" class="pill-badge" data-service="Reservasi Meja">Reservasi Meja</button>
+                        <button type="button" class="pill-badge" data-service="Perawatan Spa">Perawatan Spa</button>
+                        <button type="button" class="pill-badge" data-service="Servis & Perbaikan">Servis & Perbaikan</button>
+                        <button type="button" class="pill-badge" data-service="Pangkas Rambut">Pangkas Rambut</button>
+                    </div>
+                    <div class="input-with-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                            <polyline points="2 17 12 22 22 17"></polyline>
+                            <polyline points="2 12 12 17 22 12"></polyline>
+                        </svg>
+                        <input type="text" id="input-service" name="service" placeholder="Ketik nama layanan atau pilih di atas" required autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="input-booking-date">Tanggal Booking <span class="required">*</span></label>
+                    <div class="date-quick-picks">
+                        <button type="button" class="btn-quick-date" id="btn-date-today">Hari Ini</button>
+                        <button type="button" class="btn-quick-date" id="btn-date-tomorrow">Besok</button>
+                        <button type="button" class="btn-quick-date" id="btn-date-nextweek">+7 Hari</button>
+                    </div>
+                    <div class="input-with-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        <input type="date" id="input-booking-date" name="booking_date" required>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="cancel-modal-btn">Batal</button>
+                    <button type="submit" class="btn-primary" id="submit-booking-btn">
+                        <span class="btn-text">Simpan Booking</span>
+                        <div class="btn-spinner" style="display: none;"></div>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Konfirmasi Hapus/Batalkan -->
+    <div class="modal-backdrop" id="delete-modal" aria-hidden="true" role="dialog" aria-labelledby="delete-modal-title">
+        <div class="modal-card modal-confirm">
+            <div class="modal-header">
+                <div class="modal-icon danger">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <div>
+                    <h2 id="delete-modal-title" class="modal-title">Batalkan Booking?</h2>
+                    <p class="modal-subtitle">Tindakan ini akan menghapus data booking secara permanen.</p>
+                </div>
+            </div>
+            <div class="modal-body">
+                <p id="delete-confirmation-text">Apakah Anda yakin ingin membatalkan booking ini?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="cancel-delete-btn">Tidak, Kembali</button>
+                <button type="button" class="btn-danger" id="confirm-delete-btn">
+                    <span>Ya, Batalkan</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
